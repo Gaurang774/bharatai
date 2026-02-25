@@ -4,15 +4,20 @@ import { useEffect, useState } from 'react';
 import { chatApi, authApi } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { LogOut, LayoutDashboard, History, ShieldAlert } from 'lucide-react';
+import SettingsPanel from '@/components/SettingsPanel';
 
-export default function Sidebar({ 
-  selectedMinistry, 
+export default function Sidebar({
+  selectedMinistry,
   setSelectedMinistry,
-  onConversationSelect
-}: { 
+  onConversationSelect,
+  selectedModel,
+  onModelChange,
+}: {
   selectedMinistry: string,
   setSelectedMinistry: (m: string) => void,
-  onConversationSelect: (id: number) => void
+  onConversationSelect: (id: number) => void,
+  selectedModel: string,
+  onModelChange: (m: string) => void,
 }) {
   const [user, setUser] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
@@ -53,16 +58,16 @@ export default function Sidebar({
         <div className="p-4 mx-4 mt-6 mb-8 bg-gradient-to-br from-white/10 to-transparent border border-white/5 rounded-2xl shadow-lg group hover:border-primary/30 transition-all cursor-default relative overflow-hidden">
           <div className="absolute top-0 right-0 -m-4 w-12 h-12 bg-primary/10 blur-2xl group-hover:bg-primary/20 transition-all"></div>
           <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded-lg bg-primary text-black flex items-center justify-center font-black text-xs">
-                {user.email[0].toUpperCase()}
-             </div>
-             <div className="min-w-0">
-                <p className="text-xs font-bold text-white truncate">{user.email.split('@')[0]}</p>
-                <div className="flex items-center gap-1.5">
-                   <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></div>
-                   <p className="text-[9px] text-muted font-medium uppercase tracking-tighter truncate">{user.role} | {user.ministry}</p>
-                </div>
-             </div>
+            <div className="w-8 h-8 rounded-lg bg-primary text-black flex items-center justify-center font-black text-xs">
+              {user.email[0].toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-white truncate">{user.email.split('@')[0]}</p>
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></div>
+                <p className="text-[9px] text-muted font-medium uppercase tracking-tighter truncate">{user.role} | {user.ministry}</p>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -71,7 +76,7 @@ export default function Sidebar({
       <div className="px-6 mb-8 space-y-2">
         <label className="text-[10px] text-muted-foreground/50 uppercase tracking-[.25em] font-black block pl-1">Active Sector</label>
         <div className="relative group">
-          <select 
+          <select
             className="w-full bg-secondary/30 border border-white/10 text-xs font-bold rounded-xl p-3 outline-none focus:border-primary transition-all appearance-none cursor-pointer ring-0 pr-10"
             value={selectedMinistry}
             onChange={(e) => setSelectedMinistry(e.target.value)}
@@ -79,7 +84,7 @@ export default function Sidebar({
             {ministries.map(m => <option key={m} value={m} className="bg-card py-2">{m}</option>)}
           </select>
           <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground/40 group-hover:text-primary transition-colors">
-             <LayoutDashboard size={14}/>
+            <LayoutDashboard size={14} />
           </div>
         </div>
       </div>
@@ -92,11 +97,11 @@ export default function Sidebar({
         </div>
         {history.length === 0 ? (
           <div className="text-center py-10 opacity-20">
-             <History size={32} className="mx-auto mb-2" />
-             <p className="text-[10px] uppercase font-bold">No sessions yet</p>
+            <History size={32} className="mx-auto mb-2" />
+            <p className="text-[10px] uppercase font-bold">No sessions yet</p>
           </div>
         ) : history.map((h: any) => (
-          <button 
+          <button
             key={h.id}
             onClick={() => onConversationSelect(h.id)}
             className="w-full text-left px-4 py-3 text-xs rounded-xl hover:bg-white/5 border border-transparent hover:border-white/5 text-muted hover:text-white transition-all flex items-center gap-3 group"
@@ -107,10 +112,17 @@ export default function Sidebar({
         ))}
       </div>
 
+      {/* Settings Panel (model selector + document ingest) */}
+      <SettingsPanel
+        selectedModel={selectedModel}
+        onModelChange={onModelChange}
+        currentMinistry={selectedMinistry}
+      />
+
       {/* Footer Actions */}
       <div className="p-6 border-t border-white/5 bg-black/20 space-y-3">
         {user?.role === 'admin' && (
-          <button 
+          <button
             onClick={() => router.push('/admin')}
             className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-primary/80 bg-primary/5 border border-primary/10 hover:bg-primary/10 hover:text-primary rounded-xl transition-all"
           >
@@ -118,7 +130,7 @@ export default function Sidebar({
             Governance Panel
           </button>
         )}
-        <button 
+        <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted hover:bg-danger/10 hover:text-danger rounded-xl transition-all border border-transparent hover:border-danger/10"
         >

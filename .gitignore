@@ -23,6 +23,9 @@ wheels/
 .venv/
 venv/
 ENV/
+.history
+.chromadb
+.omen-code-index
 
 # Databases & Vector Stores
 backend/bharatai.db

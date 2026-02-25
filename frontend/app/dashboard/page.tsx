@@ -5,12 +5,22 @@ import Sidebar from '@/components/Sidebar';
 import ChatWindow from '@/components/ChatWindow';
 import { Clock, ShieldAlert } from 'lucide-react';
 
-const SESSION_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-const WARNING_BEFORE_MS = 60 * 1000; // Show warning 1 minute before
+/** Default session duration in minutes. 0 = never expire. */
+export const DEFAULT_SESSION_TIMEOUT_MIN = 0; // no timeout by default
+
+function getSessionTimeoutMs(): number {
+  if (typeof window === 'undefined') return 0;
+  const stored = localStorage.getItem('session_timeout_min');
+  const minutes = stored !== null ? parseFloat(stored) : DEFAULT_SESSION_TIMEOUT_MIN;
+  return minutes === 0 ? 0 : minutes * 60_000;
+}
+
+const WARNING_BEFORE_MS = 60_000; // 1 minute warning before expiry
 
 export default function DashboardPage() {
   const [selectedMinistry, setSelectedMinistry] = useState('General');
   const [currentConvId, setCurrentConvId] = useState<number | undefined>();
+  const [selectedModel, setSelectedModel] = useState('llama3.2:latest');
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
   const [countdown, setCountdown] = useState(60);
 
@@ -25,24 +35,31 @@ export default function DashboardPage() {
     let countdownInterval: NodeJS.Timeout;
 
     const startTimers = () => {
+      const SESSION_TIMEOUT_MS = getSessionTimeoutMs();
+
       clearTimeout(warningTimer);
       clearTimeout(logoutTimer);
       clearInterval(countdownInterval);
       setShowTimeoutWarning(false);
       setCountdown(60);
 
-      // Show warning at 4 minutes
-      warningTimer = setTimeout(() => {
-        setShowTimeoutWarning(true);
-        let remaining = 60;
-        countdownInterval = setInterval(() => {
-          remaining -= 1;
-          setCountdown(remaining);
-          if (remaining <= 0) clearInterval(countdownInterval);
-        }, 1000);
-      }, SESSION_TIMEOUT_MS - WARNING_BEFORE_MS);
+      // If timeout is disabled (0), do nothing
+      if (SESSION_TIMEOUT_MS === 0) return;
 
-      // Auto-logout at 5 minutes
+      // Show warning 1 minute before expiry (only if session > 1 min)
+      if (SESSION_TIMEOUT_MS > WARNING_BEFORE_MS) {
+        warningTimer = setTimeout(() => {
+          setShowTimeoutWarning(true);
+          let remaining = 60;
+          countdownInterval = setInterval(() => {
+            remaining -= 1;
+            setCountdown(remaining);
+            if (remaining <= 0) clearInterval(countdownInterval);
+          }, 1000);
+        }, SESSION_TIMEOUT_MS - WARNING_BEFORE_MS);
+      }
+
+      // Auto-logout at timeout
       logoutTimer = setTimeout(() => {
         localStorage.removeItem('token');
         window.location.href = '/';
@@ -68,15 +85,18 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-screen overflow-hidden relative">
-      <Sidebar 
-        selectedMinistry={selectedMinistry} 
+      <Sidebar
+        selectedMinistry={selectedMinistry}
         setSelectedMinistry={setSelectedMinistry}
         onConversationSelect={(id) => setCurrentConvId(id)}
+        selectedModel={selectedModel}
+        onModelChange={setSelectedModel}
       />
-      <ChatWindow 
-        currentConvId={currentConvId} 
+      <ChatWindow
+        currentConvId={currentConvId}
         ministry={selectedMinistry}
         onConvStart={(id) => setCurrentConvId(id)}
+        model={selectedModel}
       />
 
       {/* Session Timeout Warning Overlay */}

@@ -50,14 +50,16 @@ const MINISTRY_TEMPLATES: Record<string, { q: string; icon: string }[]> = {
   ],
 };
 
-export default function ChatWindow({ 
-  currentConvId, 
+export default function ChatWindow({
+  currentConvId,
   ministry,
-  onConvStart 
-}: { 
-  currentConvId?: number, 
+  onConvStart,
+  model,
+}: {
+  currentConvId?: number,
   ministry: string,
-  onConvStart: (id: number) => void
+  onConvStart: (id: number) => void,
+  model?: string,
 }) {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
@@ -92,18 +94,18 @@ export default function ChatWindow({
     setMessages(prev => [...prev, userMsg]);
 
     try {
-      const response = await chatApi.sendMessage(messageToSend, currentConvId, ministry, language);
-      
+      const response = await chatApi.sendMessage(messageToSend, currentConvId, ministry, language, model);
+
       if (!response.body) return;
-      
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullText = '';
-      
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        
+
         const chunk = decoder.decode(value, { stream: true });
         fullText += chunk;
         setStreamingText(prev => prev + chunk);
@@ -116,11 +118,11 @@ export default function ChatWindow({
         cleanText = fullText.replace(ragMatch[0], '');
         setRagMeta({ docs: parseInt(ragMatch[1]), confidence: parseFloat(ragMatch[2]) });
       }
-      
+
       // Once done, add to final messages and clear stream
       setMessages(prev => [...prev, { role: 'assistant', content: cleanText, ragMeta: ragMatch ? { docs: parseInt(ragMatch[1]), confidence: parseFloat(ragMatch[2]) } : null }]);
       setStreamingText('');
-      
+
     } catch (err) {
       console.error(err);
       setMessages(prev => [...prev, { role: 'assistant', content: "Error: Unable to reach sovereign cloud." }]);
@@ -146,13 +148,12 @@ export default function ChatWindow({
         </div>
         <div className="flex items-center gap-3">
           {/* Language Toggle */}
-          <button 
+          <button
             onClick={() => setLanguage(l => l === 'English' ? 'Hindi' : 'English')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all ${
-              language === 'Hindi' 
-                ? 'bg-orange-500/20 border-orange-500/30 text-orange-400' 
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all ${language === 'Hindi'
+                ? 'bg-orange-500/20 border-orange-500/30 text-orange-400'
                 : 'bg-white/5 border-white/10 text-muted hover:border-primary/30'
-            }`}
+              }`}
           >
             <Globe size={12} />
             {language === 'Hindi' ? '🇮🇳 हिंदी' : '🇬🇧 EN'}
@@ -165,7 +166,7 @@ export default function ChatWindow({
       </div>
 
       {/* Messages Area */}
-      <div 
+      <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 pb-36 scrollbar-thin scrollbar-thumb-white/10"
       >
@@ -180,12 +181,12 @@ export default function ChatWindow({
                 {language === 'Hindi' ? 'राष्ट्रीय सुरक्षा स्तर बुद्धिमत्ता कार्यक्षेत्र' : 'National Security Level Intelligence Workspace'}
               </p>
             </div>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl w-full mt-10">
               {templates.map(p => (
-                <button 
-                  key={p.q} 
-                  onClick={() => setInput(p.q)} 
+                <button
+                  key={p.q}
+                  onClick={() => setInput(p.q)}
                   className="group text-left text-xs p-4 bg-white/5 border border-white/10 rounded-2xl hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center gap-3"
                 >
                   <span className="text-lg grayscale group-hover:grayscale-0 transition-all">{p.icon}</span>
@@ -221,7 +222,7 @@ export default function ChatWindow({
               )}
               {m.is_flagged && (
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-danger/10 text-danger border border-danger/20 rounded-md text-[10px] font-bold mt-2">
-                  <ShieldAlert size={12}/> PROMPT FIREWALL: SENSITIVE DATA DETECTED
+                  <ShieldAlert size={12} /> PROMPT FIREWALL: SENSITIVE DATA DETECTED
                 </div>
               )}
             </div>
@@ -252,16 +253,16 @@ export default function ChatWindow({
           <div className="absolute -inset-1 bg-gradient-to-r from-primary/50 to-amber-200/50 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition-opacity"></div>
           <div className="relative bg-[#1a1a1a]/80 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] p-2 flex flex-col gap-2 shadow-2xl overflow-hidden">
             <div className="flex items-center gap-2 px-2 pt-1">
-               <span className="text-[8px] font-black text-muted uppercase tracking-[0.3em] flex-1">Mission Control Input</span>
-               {language === 'Hindi' && (
-                 <span className="text-[8px] font-black text-orange-400 uppercase tracking-wider">🇮🇳 हिंदी मोड सक्रिय</span>
-               )}
+              <span className="text-[8px] font-black text-muted uppercase tracking-[0.3em] flex-1">Mission Control Input</span>
+              {language === 'Hindi' && (
+                <span className="text-[8px] font-black text-orange-400 uppercase tracking-wider">🇮🇳 हिंदी मोड सक्रिय</span>
+              )}
             </div>
             <div className="flex items-end gap-2 pr-2">
               <button className="mb-2 p-2.5 text-muted hover:text-primary hover:bg-primary/10 rounded-xl transition-all">
                 <Paperclip size={20} />
               </button>
-              <textarea 
+              <textarea
                 rows={1}
                 className="flex-1 bg-transparent border-none outline-none text-sm p-3 resize-none max-h-48 scrollbar-hide focus:ring-0 placeholder:text-white/20"
                 placeholder={language === 'Hindi' ? `${ministry} डेटासेट के बारे में कुछ भी पूछें...` : `Ask anything about ${ministry} datasets...`}
@@ -274,7 +275,7 @@ export default function ChatWindow({
                   }
                 }}
               />
-              <button 
+              <button
                 onClick={() => handleSend()}
                 disabled={loading || !input.trim()}
                 className="mb-2 p-3 bg-primary text-black rounded-xl hover:bg-amber-500 hover:shadow-lg disabled:opacity-20 disabled:grayscale transition-all active:scale-95"

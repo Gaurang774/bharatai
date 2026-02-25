@@ -21,6 +21,7 @@ async def chat_message(
     message: str = Body(...),
     ministry_context: str = Body("General"),
     language: str = Body("English"),
+    model: str = Body(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -79,7 +80,7 @@ async def chat_message(
     )
 
     # 5. LLM Streaming
-    llm = LLMService()
+    llm = LLMService(model=model) if model else LLMService()
     
     def generate():
         # Create a new session for the background generator to avoid closure issues
