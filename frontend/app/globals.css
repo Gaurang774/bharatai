@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 13, 13, 13;
+  --background-end-rgb: 26, 26, 26;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-black font-semibold py-2 px-4 rounded transition-all hover:bg-amber-500 active:scale-95;
+  }
+
+  .glass-card {
+    @apply bg-secondary border border-white/10 rounded-xl backdrop-blur-sm;
+  }
+
+  .input-field {
+    @apply bg-secondary border border-white/10 text-white rounded p-2 focus:border-primary outline-none transition-all;
+  }
+}
