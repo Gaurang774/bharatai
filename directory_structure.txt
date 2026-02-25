@@ -1,0 +1,219 @@
+Directory structure for: C:\Home\Projects\Gaurangs\bharatai
+
+├── .gitignore
+├── .history
+│   ├── backend
+│   │   └── services
+│   │       ├── llm_service_20260225224407.py
+│   │       ├── llm_service_20260225231525.py
+│   │       ├── llm_service_20260225231527.py
+│   │       ├── llm_service_20260225231528.py
+│   │       ├── llm_service_20260225231529.py
+│   │       ├── llm_service_20260225231534.py
+│   │       ├── rag_service_20260225224407.py
+│   │       ├── rag_service_20260225232120.py
+│   │       ├── rag_service_20260225232121.py
+│   │       ├── rag_service_20260225232242.py
+│   │       ├── rag_service_20260225232317.py
+│   │       ├── rag_service_20260225232551.py
+│   │       └── rag_service_20260225232725.py
+│   └── frontend
+│       ├── components
+│       │   ├── LoginForm_20260225224407.tsx
+│       │   ├── LoginForm_20260225231120.tsx
+│       │   └── LoginForm_20260225231132.tsx
+│       └── lib
+│           ├── api_20260225231109.ts
+│           ├── api_20260225231111.ts
+│           ├── api_20260225231224.ts
+│           └── api_20260225231246.ts
+├── .omen-code-index
+│   ├── .gitignore
+│   └── omen-index.md
+├── COMPARISON.md
+├── README.md
+├── SYSTEM_SPECIFICATION.md
+├── backend
+│   ├── Dockerfile
+│   ├── bharatai.db
+│   ├── database.py
+│   ├── main.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   ├── audit_log.py
+│   │   ├── conversation.py
+│   │   ├── document.py
+│   │   └── user.py
+│   ├── requirements.txt
+│   ├── routers
+│   │   ├── __init__.py
+│   │   ├── audit.py
+│   │   ├── auth.py
+│   │   ├── chat.py
+│   │   └── documents.py
+│   ├── services
+│   │   ├── __init__.py
+│   │   ├── audit_service.py
+│   │   ├── auth_service.py
+│   │   ├── classifier.py
+│   │   ├── llm_service.py
+│   │   ├── rag_service.py
+│   │   └── redaction_service.py
+│   └── uploads
+├── d.py
+├── directory_structure.txt
+├── docker-compose.yml
+└── frontend
+    ├── .next
+    │   ├── app-build-manifest.json
+    │   ├── build-manifest.json
+    │   ├── cache
+    │   │   ├── swc
+    │   │   │   └── plugins
+    │   │   │       └── v7_windows_x86_64_0.106.15
+    │   │   └── webpack
+    │   │       ├── client-development
+    │   │       │   ├── 0.pack.gz
+    │   │       │   ├── 1.pack.gz
+    │   │       │   ├── 2.pack.gz
+    │   │       │   ├── 3.pack.gz
+    │   │       │   ├── 4.pack.gz
+    │   │       │   ├── index.pack.gz
+    │   │       │   └── index.pack.gz.old
+    │   │       ├── client-development-fallback
+    │   │       │   ├── 0.pack.gz
+    │   │       │   └── index.pack.gz
+    │   │       └── server-development
+    │   │           ├── 0.pack.gz
+    │   │           ├── 1.pack.gz
+    │   │           ├── 2.pack.gz
+    │   │           ├── 3.pack.gz
+    │   │           ├── 4.pack.gz
+    │   │           ├── index.pack.gz
+    │   │           └── index.pack.gz.old
+    │   ├── fallback-build-manifest.json
+    │   ├── package.json
+    │   ├── react-loadable-manifest.json
+    │   ├── server
+    │   │   ├── _error.js
+    │   │   ├── app
+    │   │   │   ├── _not-found
+    │   │   │   │   ├── page.js
+    │   │   │   │   └── page_client-reference-manifest.js
+    │   │   │   ├── dashboard
+    │   │   │   │   ├── page.js
+    │   │   │   │   └── page_client-reference-manifest.js
+    │   │   │   ├── page.js
+    │   │   │   └── page_client-reference-manifest.js
+    │   │   ├── app-paths-manifest.json
+    │   │   ├── interception-route-rewrite-manifest.js
+    │   │   ├── middleware-build-manifest.js
+    │   │   ├── middleware-manifest.json
+    │   │   ├── middleware-react-loadable-manifest.js
+    │   │   ├── next-font-manifest.js
+    │   │   ├── next-font-manifest.json
+    │   │   ├── pages
+    │   │   │   ├── _app.js
+    │   │   │   ├── _document.js
+    │   │   │   └── _error.js
+    │   │   ├── pages-manifest.json
+    │   │   ├── server-reference-manifest.js
+    │   │   ├── server-reference-manifest.json
+    │   │   ├── vendor-chunks
+    │   │   │   ├── @swc.js
+    │   │   │   ├── lucide-react.js
+    │   │   │   └── next.js
+    │   │   └── webpack-runtime.js
+    │   ├── static
+    │   │   ├── chunks
+    │   │   │   ├── _error.js
+    │   │   │   ├── app
+    │   │   │   │   ├── _not-found
+    │   │   │   │   │   └── page.js
+    │   │   │   │   ├── dashboard
+    │   │   │   │   │   └── page.js
+    │   │   │   │   ├── layout.js
+    │   │   │   │   └── page.js
+    │   │   │   ├── app-pages-internals.js
+    │   │   │   ├── fallback
+    │   │   │   │   ├── amp.js
+    │   │   │   │   ├── main.js
+    │   │   │   │   ├── pages
+    │   │   │   │   │   ├── _app.js
+    │   │   │   │   │   └── _error.js
+    │   │   │   │   ├── react-refresh.js
+    │   │   │   │   └── webpack.js
+    │   │   │   ├── main-app.js
+    │   │   │   ├── main.js
+    │   │   │   ├── pages
+    │   │   │   │   ├── _app.js
+    │   │   │   │   └── _error.js
+    │   │   │   ├── polyfills.js
+    │   │   │   ├── react-refresh.js
+    │   │   │   └── webpack.js
+    │   │   ├── css
+    │   │   │   └── app
+    │   │   │       └── layout.css
+    │   │   ├── development
+    │   │   │   ├── _buildManifest.js
+    │   │   │   └── _ssgManifest.js
+    │   │   ├── media
+    │   │   │   ├── 19cfc7226ec3afaa-s.woff2
+    │   │   │   ├── 21350d82a1f187e9-s.woff2
+    │   │   │   ├── 8e9860b6e62d6359-s.woff2
+    │   │   │   ├── ba9851c3c22cd980-s.woff2
+    │   │   │   ├── c5fe6dc8356a8c31-s.woff2
+    │   │   │   ├── df0a9ae256c0569c-s.woff2
+    │   │   │   └── e4af272ccee01ff0-s.p.woff2
+    │   │   └── webpack
+    │   │       ├── 04fe959cf3de37c1.webpack.hot-update.json
+    │   │       ├── 411a053488660c7d.webpack.hot-update.json
+    │   │       ├── 633457081244afec._.hot-update.json
+    │   │       ├── 76d1e0a49b228c39.webpack.hot-update.json
+    │   │       ├── 9605e09dc99bce4c.webpack.hot-update.json
+    │   │       ├── app
+    │   │       │   ├── layout.411a053488660c7d.hot-update.js
+    │   │       │   ├── layout.9605e09dc99bce4c.hot-update.js
+    │   │       │   ├── page.04fe959cf3de37c1.hot-update.js
+    │   │       │   ├── page.411a053488660c7d.hot-update.js
+    │   │       │   ├── page.9605e09dc99bce4c.hot-update.js
+    │   │       │   ├── page.daa8efcf14c72fb0.hot-update.js
+    │   │       │   └── page.ffbfe17c417776ef.hot-update.js
+    │   │       ├── daa8efcf14c72fb0.webpack.hot-update.json
+    │   │       ├── ffbfe17c417776ef.webpack.hot-update.json
+    │   │       ├── webpack.04fe959cf3de37c1.hot-update.js
+    │   │       ├── webpack.411a053488660c7d.hot-update.js
+    │   │       ├── webpack.76d1e0a49b228c39.hot-update.js
+    │   │       ├── webpack.9605e09dc99bce4c.hot-update.js
+    │   │       ├── webpack.daa8efcf14c72fb0.hot-update.js
+    │   │       └── webpack.ffbfe17c417776ef.hot-update.js
+    │   ├── trace
+    │   └── types
+    │       ├── app
+    │       │   ├── dashboard
+    │       │   │   └── page.ts
+    │       │   ├── layout.ts
+    │       │   └── page.ts
+    │       └── package.json
+    ├── Dockerfile
+    ├── app
+    │   ├── admin
+    │   │   └── page.tsx
+    │   ├── dashboard
+    │   │   └── page.tsx
+    │   ├── globals.css
+    │   ├── layout.tsx
+    │   └── page.tsx
+    ├── components
+    │   ├── ChatWindow.tsx
+    │   ├── LoginForm.tsx
+    │   └── Sidebar.tsx
+    ├── lib
+    │   └── api.ts
+    ├── next-env.d.ts
+    ├── next.config.js
+    ├── package-lock.json
+    ├── package.json
+    ├── postcss.config.js
+    ├── tailwind.config.js
+    └── tsconfig.json

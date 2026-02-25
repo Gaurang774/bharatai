@@ -1,16 +1,18 @@
 import os
 from typing import List, Tuple
 from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import SentenceTransformerEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from dotenv import load_dotenv
 from services.redaction_service import RedactionService
+from langchain_ollama import OllamaEmbeddings
 
 load_dotenv()
 
 CHROMA_DB_DIR = os.getenv("CHROMA_DB_DIR", "./chromadb")
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL = "nomic-embed-text"
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
 class RAGService:
     _instance = None
@@ -19,7 +21,10 @@ class RAGService:
         if cls._instance is None:
             print(">>> Initializing Sovereign Knowledge Model (SentenceTransformer)...")
             cls._instance = super(RAGService, cls).__new__(cls)
-            cls._instance.embeddings = SentenceTransformerEmbeddings(model_name=EMBEDDING_MODEL)
+            cls._instance.embeddings = OllamaEmbeddings(
+                model=EMBEDDING_MODEL,
+                base_url=OLLAMA_URL
+            )
             cls._instance.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
             cls._instance.redactor = RedactionService()
             print("--- RAG Engine Ready.")
