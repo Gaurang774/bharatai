@@ -165,7 +165,7 @@ class HyDEService:
         seen: set[int] = set()
         combined: list[str] = []
         for doc in normal_results + hyde_results:
-            key = hash(doc[:100])
+            key = hash(doc)
             if key not in seen:
                 seen.add(key)
                 combined.append(doc)

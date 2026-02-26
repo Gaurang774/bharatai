@@ -18,7 +18,7 @@ This document outlines the core components of a state-of-the-art, highly efficie
 
 | Feature                         | Ideal RAG Model                                                                 | BharatAI RAG Model                                                                              | Status |
 | :------------------------------ | :------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------- | :----: |
-| **Semantic Chunking**           | Splits text intelligently keeping complete thoughts/sentences intact.           | Splits recursively targeting specific separators including Devanagari (।) and English (. ).     |   🟢   |
+| **Semantic Chunking**           | Splits text intelligently, keeping complete thoughts/sentences intact.          | Splits recursively targeting specific separators including Devanagari (।) and English (.).      |   🟢   |
 | **Document-Specific Splitting** | Adapts chunking strategy based on the document type (e.g., policy vs legalese). | Implements custom `_section_chunk`, `_legal_chunk`, and `_circular_chunk` with varied overlaps. |   🟢   |
 | **Overlap Preservation**        | Ensures adjacent chunks overlap to retain trailing context boundary cues.       | Uses strategic overlap (up to 200 chars for legal texts) to conserve full entity meaning.       |   🟢   |
 

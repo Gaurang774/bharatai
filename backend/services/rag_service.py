@@ -3,6 +3,7 @@ from chromadb.config import Settings
 import requests
 import logging
 import os
+import asyncio
 from typing import List
 from rank_bm25 import BM25Okapi
 
@@ -145,7 +146,7 @@ class RAGService:
         seen = set()
         combined = []
         for doc in vector_results + keyword_results:
-            doc_hash = hash(doc[:100])
+            doc_hash = hash(doc)
             if doc_hash not in seen:
                 seen.add(doc_hash)
                 combined.append(doc)
@@ -192,22 +193,24 @@ class RAGService:
         if cached:
             return {**cached, "from_cache": True}
 
-        # STEP 2 (NEW): Rewrite query for better retrieval signal
-        rewrite_result = self.rewriter.rewrite(question, ministry)
+        # STEP 2 (NEW): Rewrite query for better retrieval signal (offload blocking HTTP)
+        rewrite_result = await asyncio.to_thread(self.rewriter.rewrite, question, ministry)
         search_query = rewrite_result["rewritten"]
 
         # STEP 3 (NEW): Hybrid search — HyDE for short queries, normal for long
-        if self.hyde.should_use_hyde(search_query):
-            raw_chunks, hyp_doc = self.hyde.hybrid_hyde_search(
+        # Decide based on the ORIGINAL query before ministry context is appended
+        if self.hyde.should_use_hyde(question):
+            raw_chunks, hyp_doc = await asyncio.to_thread(
+                self.hyde.hybrid_hyde_search,
                 search_query, ministry, self._get_collection(ministry)
             )
             # Supplement with BM25 keyword results
             keyword_chunks = self._keyword_search(search_query, ministry, n_results=10)
-            seen = {hash(c[:100]) for c in raw_chunks}
+            seen = {hash(c) for c in raw_chunks}
             for c in keyword_chunks:
-                if hash(c[:100]) not in seen:
+                if hash(c) not in seen:
                     raw_chunks.append(c)
-                    seen.add(hash(c[:100]))
+                    seen.add(hash(c))
             hyde_used = True
         else:
             raw_chunks = self._hybrid_search(search_query, ministry)

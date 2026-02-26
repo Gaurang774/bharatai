@@ -78,21 +78,24 @@ class SemanticQueryCache:
         Remove all cache entries for a ministry.
         Called automatically after a new document is uploaded.
         """
+        ministry_norm = self._normalize_ministry(ministry)
         keys_to_delete = [
             k for k, v in self._exact_cache.items()
-            if v.get("ministry") == ministry.lower()
+            if v.get("ministry") == ministry_norm
         ]
         for k in keys_to_delete:
             del self._exact_cache[k]
 
         self._semantic_cache = [
             e for e in self._semantic_cache
-            if e["ministry"] != ministry
+            if e["ministry"] != ministry_norm
         ]
         logger.info(
-            f"Cache invalidated for '{ministry}': "
+            f"Cache invalidated for '{ministry_norm}': "
             f"removed {len(keys_to_delete)} exact + rebuilt semantic list"
         )
+
+
 
     def stats(self) -> dict:
         total = self.exact_hits + self.semantic_hits + self.misses
@@ -112,8 +115,11 @@ class SemanticQueryCache:
     # Exact cache (unchanged from original QueryCache)
     # ------------------------------------------------------------------
 
+    def _normalize_ministry(self, ministry: str) -> str:
+        return ministry.lower().strip()
+
     def _make_key(self, query: str, ministry: str) -> str:
-        normalized = f"{query.lower().strip()}|{ministry.lower()}"
+        normalized = f"{query.lower().strip()}|{self._normalize_ministry(ministry)}"
         return hashlib.md5(normalized.encode()).hexdigest()
 
     def _exact_get(self, query: str, ministry: str) -> Optional[dict]:
@@ -127,6 +133,7 @@ class SemanticQueryCache:
         return entry["data"]
 
     def _exact_set(self, query: str, ministry: str, data: dict):
+        ministry_norm = self._normalize_ministry(ministry)
         if len(self._exact_cache) >= self.max_size:
             oldest = min(
                 self._exact_cache,
@@ -136,7 +143,7 @@ class SemanticQueryCache:
         key = self._make_key(query, ministry)
         self._exact_cache[key] = {
             "data":      data,
-            "ministry":  ministry.lower(),
+            "ministry":  ministry_norm,
             "cached_at": datetime.now(),
         }
 
@@ -150,6 +157,7 @@ class SemanticQueryCache:
             return None
 
         query_emb = self.embeddings.embed_text(query)
+        ministry_norm = self._normalize_ministry(ministry)
         now = datetime.now()
 
         best_score = 0.0
@@ -158,7 +166,7 @@ class SemanticQueryCache:
         for entry in self._semantic_cache:
             if now - entry["cached_at"] > self.ttl:
                 continue
-            if entry["ministry"] != ministry:
+            if entry["ministry"] != ministry_norm:
                 continue
             score = self._cosine_similarity(query_emb, entry["embedding"])
             if score > best_score:
@@ -166,24 +174,29 @@ class SemanticQueryCache:
                 best_entry = entry
 
         if best_score >= self.semantic_threshold and best_entry:
+            exact = self._exact_cache.get(best_entry["key"])
+            if not exact:
+                return None  # exact entry evicted or expired
             logger.info(
                 f"Cache SEMANTIC HIT — {best_score:.1%} similarity "
                 f"| Original cached query: '{best_entry['query'][:60]}'"
             )
-            return best_entry["data"]
+            return exact["data"]
 
         return None
 
     def _semantic_set(self, query: str, ministry: str, data: dict):
         """Store a query + its embedding in the semantic cache."""
+        ministry_norm = self._normalize_ministry(ministry)
         if len(self._semantic_cache) >= self.max_size:
             self._semantic_cache.pop(0)   # Evict oldest
 
+        key = self._make_key(query, ministry)
         self._semantic_cache.append({
             "query":     query,
-            "ministry":  ministry,
+            "ministry":  ministry_norm,
             "embedding": self.embeddings.embed_text(query),
-            "data":      data,
+            "key":       key,
             "cached_at": datetime.now(),
         })
 
@@ -194,6 +207,12 @@ class SemanticQueryCache:
     @staticmethod
     def _cosine_similarity(emb1: list[float], emb2: list[float]) -> float:
         """Pure-Python cosine similarity (no numpy required)."""
+        if len(emb1) != len(emb2):
+            raise ValueError(
+                f"Cosine similarity requires embeddings of equal length; "
+                f"got {len(emb1)} and {len(emb2)}."
+            )
+
         dot  = sum(a * b for a, b in zip(emb1, emb2))
         mag1 = math.sqrt(sum(a * a for a in emb1))
         mag2 = math.sqrt(sum(b * b for b in emb2))
