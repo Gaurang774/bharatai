@@ -5,8 +5,8 @@ frontend/out/
 frontend/.env.local
 
 # ===== Python / Backend =====
-backend/__pycache__/
-backend/*.pyc
+**/__pycache__/
+*.pyc
 backend/venv/
 backend/.env
 backend/bharatai.db
