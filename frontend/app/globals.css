@@ -3,31 +3,88 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 13, 13, 13;
-  --background-end-rgb: 26, 26, 26;
+  --background-primary: #080808;
+  --background-secondary: #111111;
+  --background-card: #161616;
+  --background-hover: #1c1c1c;
+  --border-default: #222222;
+  --border-active: #f59e0b;
+  --accent-primary: #f59e0b;
+  --accent-hover: #d97706;
+  --accent-glow: rgba(245, 158, 11, 0.15);
+  --text-primary: #f5f5f5;
+  --text-secondary: #a3a3a3;
+  --text-muted: #525252;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --warning: #f97316;
+  --info: #3b82f6;
+  --flagged-bg: rgba(239, 68, 68, 0.06);
+  --flagged-border: rgba(239, 68, 68, 0.3);
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+@layer base {
+  html {
+    background-color: #080808;
+    color: #f5f5f5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
+  }
+
+  body {
+    background-color: #080808;
+    color: #f5f5f5;
+    margin: 0;
+    padding: 0;
+  }
+
+  ::selection {
+    background-color: #f59e0b;
+    color: #000000;
+  }
 }
 
-@layer components {
-  .btn-primary {
-    @apply bg-primary text-black font-semibold py-2 px-4 rounded transition-all hover:bg-amber-500 active:scale-95;
+@layer utilities {
+  .amber-glow {
+    box-shadow: 0 0 20px -5px var(--accent-glow);
   }
 
-  .glass-card {
-    @apply bg-secondary border border-white/10 rounded-xl backdrop-blur-sm;
+  .amber-border-glow {
+    box-shadow: 0 0 10px -2px var(--accent-glow);
   }
 
-  .input-field {
-    @apply bg-secondary border border-white/10 text-white rounded p-2 focus:border-primary outline-none transition-all;
+  .grid-pattern {
+    background-image:
+      linear-gradient(to right, #111 1px, transparent 1px),
+      linear-gradient(to bottom, #111 1px, transparent 1px);
+    background-size: 40px 40px;
   }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #111;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #222;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #f59e0b;
 }

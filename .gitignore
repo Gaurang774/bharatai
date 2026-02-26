@@ -1,54 +1,29 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-.venv/
-venv/
-ENV/
-.history
-.chromadb
-.omen-code-index
+# ===== Node / Frontend =====
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
 
-# Databases & Vector Stores
+# ===== Python / Backend =====
+backend/__pycache__/
+backend/*.pyc
+backend/venv/
+backend/.env
 backend/bharatai.db
-backend/chromadb/
-*.sqlite3
+backend/uploads/
+backend/chroma_data/
+backend/model_cache/
 
-# Node / Next.js
-node_modules/
-.next/
-out/
-next-env.d.ts
+# ===== Docker volumes (handled by docker) =====
+chroma_data/
+model_cache/
+uploads/
+
+# ===== OS =====
 .DS_Store
+Thumbs.db
+
+# ===== Secrets =====
 *.pem
-
-# Environment Secrets
+*.key
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Logs
-*.log
-backend/diagnostic_*.py
-backend/test_*.py
-backend/startup_error.log
