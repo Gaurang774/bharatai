@@ -12,9 +12,11 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+
 @router.post("/upload")
 async def upload_document(
     ministry: str = Form(...),
+    doc_type: str = Form("general"),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -28,25 +30,39 @@ async def upload_document(
 
     try:
         rag = RAGService()
-        chunk_count, redaction_count = rag.process_and_store_document(file_path, ministry)
-        
+        ingestion_result = rag.ingest_document(
+            filepath=file_path,
+            ministry=ministry,
+            doc_type=doc_type,
+            filename=file.filename
+        )
+
         db_doc = DBDocument(
             filename=file.filename,
             ministry=ministry,
             uploaded_by=current_user.email,
-            chunk_count=chunk_count
+            chunk_count=ingestion_result["chunk_count"]
         )
         db.add(db_doc)
         db.commit()
-        
+
+        scanned_note = " (OCR used — scanned PDF detected)" if ingestion_result["is_scanned"] else ""
+        hindi_note = " | Hindi content detected." if ingestion_result["language"] == "hi" else ""
+        table_note = " | Tables extracted." if ingestion_result["has_tables"] else ""
+
         return {
-            "message": "File uploaded and processed",
-            "chunks": chunk_count,
-            "redactions": redaction_count,
-            "redaction_note": f"🛡️ {redaction_count} PII items (Aadhaar/PAN/Phone/Email) were automatically redacted before indexing." if redaction_count > 0 else "No PII detected."
+            "message": f"File uploaded and processed{scanned_note}",
+            "chunks": ingestion_result["chunk_count"],
+            "pages": ingestion_result["page_count"],
+            "total_words": ingestion_result["total_words"],
+            "language": ingestion_result["language"],
+            "has_tables": ingestion_result["has_tables"],
+            "is_scanned": ingestion_result["is_scanned"],
+            "notes": f"✅ Ingested successfully.{hindi_note}{table_note}"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"RAG Processing Error: {str(e)}")
+
 
 @router.get("/list")
 async def list_documents(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

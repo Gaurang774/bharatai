@@ -10,7 +10,7 @@ from models.conversation import Conversation, Message
 from models.audit_log import AuditLog
 from models.document import Document
 
-from routers import auth, chat, audit, documents, models
+from routers import auth, chat, audit, documents, models, rag_debug
 from services.auth_service import get_password_hash
 
 app = FastAPI(title="BharatAI API", version="1.0.0")
@@ -30,6 +30,7 @@ app.include_router(chat.router)
 app.include_router(audit.router)
 app.include_router(documents.router)
 app.include_router(models.router)
+app.include_router(rag_debug.router)
 
 
 DEMO_AUDIT_ENTRIES = [

@@ -1,49 +1,148 @@
 version: "3.8"
 
 services:
+  # =====================================================
+  # PostgreSQL Database
+  # =====================================================
   db:
     image: postgres:15-alpine
+    container_name: bharatai_db
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin123
-      POSTGRES_DB: bharatai
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      POSTGRES_DB: ${POSTGRES_DB:-bharatai}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-bharatai}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # =====================================================
+  # ChromaDB — Vector Store
+  # =====================================================
   chromadb:
     image: chromadb/chroma:latest
+    container_name: bharatai_chroma
+    restart: unless-stopped
     ports:
       - "8001:8000"
     volumes:
       - chroma_data:/chroma/chroma
+    environment:
+      ANONYMIZED_TELEMETRY: "False"
 
+  # =====================================================
+  # Ollama — Sovereign LLM Runtime
+  # =====================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: bharatai_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # GPU support: uncomment below if you have NVIDIA GPU + nvidia-docker installed
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  # =====================================================
+  # Model Bootstrap — pulls llama3 on first run
+  # =====================================================
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: bharatai_ollama_init
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: >
+      sh -c "
+        echo '>>> Pulling llama3 model (first run only — this may take 5-10 minutes)...' &&
+        ollama pull llama3 &&
+        echo '>>> llama3 is ready!'
+      "
+    volumes:
+      - ollama_data:/root/.ollama
+
+  # =====================================================
+  # FastAPI Backend
+  # =====================================================
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: bharatai_backend
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://admin:admin123@db:5432/bharatai
-      CHROMA_DB_DIR: /chroma
-      OLLAMA_URL: http://host.docker.internal:11434
+      DATABASE_URL: postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-123456}@db:5432/${POSTGRES_DB:-bharatai}
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3}
+      CHROMA_DB_DIR: /app/chroma_data
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      MODEL_CACHE_DIR: /app/model_cache
+      SECRET_KEY: ${SECRET_KEY:-your-super-secret-key-change-in-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
     ports:
       - "8000:8000"
+    volumes:
+      - chroma_data:/app/chroma_data
+      - model_cache:/app/model_cache
+      - uploads_data:/app/uploads
     depends_on:
-      - db
-      - chromadb
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
 
+  # =====================================================
+  # Next.js Frontend
+  # =====================================================
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    container_name: bharatai_frontend
+    restart: unless-stopped
     ports:
       - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     depends_on:
       - backend
 
 volumes:
   postgres_data:
   chroma_data:
+  ollama_data:
+  model_cache:
+  uploads_data:

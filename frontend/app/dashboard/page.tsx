@@ -1,123 +1,159 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import Sidebar from '@/components/Sidebar';
-import ChatWindow from '@/components/ChatWindow';
-import { Clock, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { TopBar } from "@/components/layout/TopBar";
+import { ChatWindow } from "@/components/chat/ChatWindow";
+import { ChatInput } from "@/components/chat/ChatInput";
+import { SensitiveWarning } from "@/components/chat/SensitiveWarning";
+import { chatApi, documentApi } from "@/lib/api";
+import { getUser, type UserPayload } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
-/** Default session duration in minutes. 0 = never expire. */
-export const DEFAULT_SESSION_TIMEOUT_MIN = 0; // no timeout by default
-
-function getSessionTimeoutMs(): number {
-  if (typeof window === 'undefined') return 0;
-  const stored = localStorage.getItem('session_timeout_min');
-  const minutes = stored !== null ? parseFloat(stored) : DEFAULT_SESSION_TIMEOUT_MIN;
-  return minutes === 0 ? 0 : minutes * 60_000;
+interface Message {
+  role: "user" | "assistant";
+  content: string;
 }
 
-const WARNING_BEFORE_MS = 60_000; // 1 minute warning before expiry
+interface PendingOptions {
+  language: string;
+  file?: File;
+}
 
 export default function DashboardPage() {
-  const [selectedMinistry, setSelectedMinistry] = useState('General');
-  const [currentConvId, setCurrentConvId] = useState<number | undefined>();
-  const [selectedModel, setSelectedModel] = useState('llama3.2:latest');
-  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
-  const [countdown, setCountdown] = useState(60);
-
-  const resetTimer = useCallback(() => {
-    setShowTimeoutWarning(false);
-    setCountdown(60);
-  }, []);
+  const router = useRouter();
+  const [user, setUser] = useState<UserPayload | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isWarningOpen, setIsWarningOpen] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState("");
+  const [pendingOptions, setPendingOptions] = useState<PendingOptions>({ language: "English" });
+  const [flaggedKeywords, setFlaggedKeywords] = useState<string[]>([]);
 
   useEffect(() => {
-    let warningTimer: NodeJS.Timeout;
-    let logoutTimer: NodeJS.Timeout;
-    let countdownInterval: NodeJS.Timeout;
+    const u = getUser();
+    if (!u) {
+      router.push("/");
+    } else {
+      setUser(u);
+    }
+  }, [router]);
 
-    const startTimers = () => {
-      const SESSION_TIMEOUT_MS = getSessionTimeoutMs();
+  const handleSendMessage = async (
+    text: string,
+    options: { language: string; file?: File } = { language: "English" },
+    force: boolean = false
+  ) => {
+    if (!text.trim()) return;
 
-      clearTimeout(warningTimer);
-      clearTimeout(logoutTimer);
-      clearInterval(countdownInterval);
-      setShowTimeoutWarning(false);
-      setCountdown(60);
+    // Client-side sensitive keyword pre-check for UX (backend still validates)
+    const sensitiveWords = ["nuclear", "classified", "top secret", "troop deployment", "raw data", "internal memo"];
+    const foundKeywords = sensitiveWords.filter((word) =>
+      text.toLowerCase().includes(word)
+    );
 
-      // If timeout is disabled (0), do nothing
-      if (SESSION_TIMEOUT_MS === 0) return;
+    if (foundKeywords.length > 0 && !force) {
+      setFlaggedKeywords(foundKeywords);
+      setPendingMessage(text);
+      setPendingOptions(options);
+      setIsWarningOpen(true);
+      return;
+    }
 
-      // Show warning 1 minute before expiry (only if session > 1 min)
-      if (SESSION_TIMEOUT_MS > WARNING_BEFORE_MS) {
-        warningTimer = setTimeout(() => {
-          setShowTimeoutWarning(true);
-          let remaining = 60;
-          countdownInterval = setInterval(() => {
-            remaining -= 1;
-            setCountdown(remaining);
-            if (remaining <= 0) clearInterval(countdownInterval);
-          }, 1000);
-        }, SESSION_TIMEOUT_MS - WARNING_BEFORE_MS);
+    setIsLoading(true);
+
+    // If a file is attached, upload it first (to the RAG knowledge base)
+    if (options.file) {
+      try {
+        const formData = new FormData();
+        formData.append("file", options.file);
+        formData.append("ministry", user?.ministry || "General");
+        await documentApi.upload(formData);
+        toast.success(`📎 "${options.file.name}" indexed into knowledge base.`, { duration: 4000 });
+      } catch (err: any) {
+        // Non-fatal: let the message still go through
+        toast.error(`File upload failed: ${err?.response?.data?.detail || "Unknown error"}`);
       }
+    }
 
-      // Auto-logout at timeout
-      logoutTimer = setTimeout(() => {
-        localStorage.removeItem('token');
-        window.location.href = '/';
-      }, SESSION_TIMEOUT_MS);
-    };
+    const newMessages: Message[] = [...messages, { role: "user", content: text }];
+    setMessages(newMessages);
 
-    startTimers();
+    try {
+      const res = await chatApi.sendMessage(text, {
+        ministry_context: user?.ministry || "General",
+        language: options.language,
+      });
 
-    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
-    const handleActivity = () => {
-      startTimers();
-    };
+      if (!res.ok) throw new Error("Terminal connection failed");
 
-    activityEvents.forEach(event => window.addEventListener(event, handleActivity));
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let assistantContent = "";
 
-    return () => {
-      clearTimeout(warningTimer);
-      clearTimeout(logoutTimer);
-      clearInterval(countdownInterval);
-      activityEvents.forEach(event => window.removeEventListener(event, handleActivity));
-    };
-  }, []);
+      setMessages([...newMessages, { role: "assistant", content: "" }]);
+
+      while (true) {
+        const { done, value } = await reader!.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+
+        // Filter RAG metadata tokens
+        if (chunk.includes("[RAG_META:")) continue;
+
+        assistantContent += chunk;
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          { role: "assistant", content: assistantContent },
+        ]);
+      }
+    } catch (err) {
+      toast.error("Security Interception Error: Failed to retrieve sovereign intelligence.");
+      setMessages((prev) => prev.slice(0, -1));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const confirmFlaggedMessage = () => {
+    setIsWarningOpen(false);
+    handleSendMessage(pendingMessage, pendingOptions, true);
+    toast.error("⚠️ Interaction flagged and logged for security review.", { duration: 5000 });
+  };
+
+  if (!user) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden relative">
-      <Sidebar
-        selectedMinistry={selectedMinistry}
-        setSelectedMinistry={setSelectedMinistry}
-        onConversationSelect={(id) => setCurrentConvId(id)}
-        selectedModel={selectedModel}
-        onModelChange={setSelectedModel}
-      />
-      <ChatWindow
-        currentConvId={currentConvId}
-        ministry={selectedMinistry}
-        onConvStart={(id) => setCurrentConvId(id)}
-        model={selectedModel}
-      />
+    <div className="flex h-screen bg-[#080808]">
+      <Sidebar />
 
-      {/* Session Timeout Warning Overlay */}
-      {showTimeoutWarning && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center animate-in fade-in">
-          <div className="bg-card border border-danger/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-danger/10 text-center space-y-4">
-            <div className="w-16 h-16 bg-danger/20 rounded-2xl flex items-center justify-center mx-auto">
-              <ShieldAlert size={32} className="text-danger" />
-            </div>
-            <h3 className="text-xl font-black text-white">Security Timeout</h3>
-            <p className="text-sm text-muted">
-              Your sovereign session will expire in <span className="text-danger font-black text-lg">{countdown}s</span> due to inactivity.
-            </p>
-            <p className="text-xs text-muted/60">Move your mouse or press any key to extend the session.</p>
-            <div className="flex items-center justify-center gap-2 text-[10px] text-danger/60 uppercase font-bold tracking-widest">
-              <Clock size={12} />
-              Government Security Compliance Protocol
-            </div>
-          </div>
+      <main className="flex flex-1 flex-col pl-[260px] relative">
+        <TopBar />
+
+        <div className="flex flex-1 flex-col pt-[52px]">
+          <ChatWindow
+            messages={messages}
+            isLoading={isLoading}
+            onSelectPrompt={(text) => handleSendMessage(text, { language: "English" })}
+            userEmail={user.sub}
+          />
+
+          <ChatInput onSend={handleSendMessage} isLoading={isLoading} />
         </div>
-      )}
+
+        {/* Ambient glow */}
+        <div className="pointer-events-none absolute top-[10%] right-[10%] h-[300px] w-[300px] rounded-full bg-[#f59e0b]/[0.02] blur-[120px]" />
+        <div className="pointer-events-none absolute bottom-[20%] left-[5%] h-[200px] w-[200px] rounded-full bg-[#f59e0b]/[0.01] blur-[80px]" />
+      </main>
+
+      <SensitiveWarning
+        isOpen={isWarningOpen}
+        onClose={() => setIsWarningOpen(false)}
+        onConfirm={confirmFlaggedMessage}
+        keywords={flaggedKeywords}
+      />
     </div>
   );
 }

@@ -1,16 +1,36 @@
+# Web Framework
 fastapi
 uvicorn[standard]
+
+# Database
 sqlalchemy
 psycopg2-binary
+python-dotenv
+
+# Auth
 python-jose[cryptography]
 bcrypt
 python-multipart
-python-dotenv
+
+# HTTP
 requests
 pydantic-settings
+
+# RAG Core
 langchain
 langchain-community
 langchain-text-splitters
-sentence-transformers
 chromadb
-pypdf
+
+# Embeddings & Reranking (Production)
+sentence-transformers    # Multilingual embeddings + cross-encoder reranker
+
+# Keyword Search
+rank-bm25               # BM25 keyword search
+
+# PDF Extraction (Production)
+pdfplumber              # Extracts tables properly
+pypdf                   # Fallback
+pdf2image               # Converts PDF pages to images for OCR
+pytesseract             # OCR for scanned government docs
+Pillow                  # Required by pytesseract
