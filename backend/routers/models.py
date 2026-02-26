@@ -7,7 +7,6 @@ from models.user import User
 
 load_dotenv()
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
 router = APIRouter(prefix="/api/models", tags=["models"])
 

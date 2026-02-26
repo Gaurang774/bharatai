@@ -3,18 +3,20 @@ from chromadb.config import Settings
 import requests
 import logging
 import os
+import asyncio
 from typing import List
 from rank_bm25 import BM25Okapi
 
 from services.embeddings_service import EmbeddingsService
 from services.reranker_service import RerankerService
-from services.cache_service import QueryCache
+from services.cache_service import SemanticQueryCache
 from services.chunking_service import ChunkingService
+from services.query_rewriter import QueryRewriter
+from services.hyde_service import HyDEService
 from utils.pdf_extractor import PDFExtractor
 
 logger = logging.getLogger("bharatai")
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 CHROMA_DIR = os.getenv("CHROMA_DB_DIR", "./chroma_data")
 
 
@@ -45,9 +47,13 @@ class RAGService:
         # Core services
         self.embeddings = EmbeddingsService()
         self.reranker = RerankerService()
-        self.cache = QueryCache(ttl_minutes=10)
+        self.cache = SemanticQueryCache(ttl_minutes=10, semantic_threshold=0.90)
         self.chunker = ChunkingService()
         self.extractor = PDFExtractor()
+
+        # NEW: Query rewriting + HyDE
+        self.rewriter = QueryRewriter()
+        self.hyde = HyDEService()
 
         # ChromaDB
         self.chroma_client = chromadb.PersistentClient(
@@ -60,7 +66,7 @@ class RAGService:
         self._bm25_docs: dict = {}
 
         self._initialized = True
-        logger.info("RAG pipeline ready")
+        logger.info("RAG pipeline ready (with Query Rewriting, HyDE, Semantic Cache)")
 
     def _get_collection(self, ministry: str):
         """Get or create ministry-specific ChromaDB collection"""
@@ -139,7 +145,7 @@ class RAGService:
         seen = set()
         combined = []
         for doc in vector_results + keyword_results:
-            doc_hash = hash(doc[:100])
+            doc_hash = hash(doc)
             if doc_hash not in seen:
                 seen.add(doc_hash)
                 combined.append(doc)
@@ -176,18 +182,41 @@ class RAGService:
         role: str = "officer"
     ) -> dict:
         """
-        Main RAG query pipeline.
-        Returns response with sources and metadata.
+        Main RAG query pipeline — Enhanced with:
+          - Semantic + exact query caching
+          - Query rewriting (acronyms, spell correction, LLM expansion)
+          - HyDE retrieval for short/vague queries
         """
-        # 1. Check cache
+        # STEP 1: Cache check — use ORIGINAL question as cache key
         cached = self.cache.get(question, ministry)
         if cached:
             return {**cached, "from_cache": True}
 
-        # 2. Hybrid search
-        raw_chunks = self._hybrid_search(question, ministry)
+        # STEP 2 (NEW): Rewrite query for better retrieval signal (offload blocking HTTP)
+        rewrite_result = await asyncio.to_thread(self.rewriter.rewrite, question, ministry)
+        search_query = rewrite_result["rewritten"]
 
-        # 3. Rerank for true relevance
+        # STEP 3 (NEW): Hybrid search — HyDE for short queries, normal for long
+        # Decide based on the ORIGINAL query before ministry context is appended
+        if self.hyde.should_use_hyde(question):
+            raw_chunks, hyp_doc = await asyncio.to_thread(
+                self.hyde.hybrid_hyde_search,
+                search_query, ministry, self._get_collection(ministry)
+            )
+            # Supplement with BM25 keyword results
+            keyword_chunks = self._keyword_search(search_query, ministry, n_results=10)
+            seen = {hash(c) for c in raw_chunks}
+            for c in keyword_chunks:
+                if hash(c) not in seen:
+                    raw_chunks.append(c)
+                    seen.add(hash(c))
+            hyde_used = True
+        else:
+            raw_chunks = self._hybrid_search(search_query, ministry)
+            hyp_doc = None
+            hyde_used = False
+
+        # STEP 4: Rerank for true relevance (unchanged)
         if raw_chunks:
             ranked_chunks = self.reranker.rerank(
                 question, raw_chunks, top_k=3
@@ -195,14 +224,14 @@ class RAGService:
         else:
             ranked_chunks = []
 
-        # 4. Build context
+        # STEP 5: Build context (unchanged)
         has_context = len(ranked_chunks) > 0
         context = self._fit_context_window(ranked_chunks) if has_context else ""
 
-        # 5. Build system prompt
+        # STEP 6: Build system prompt (unchanged)
         system_prompt = self._build_system_prompt(ministry, role, has_context)
 
-        # 6. Build user prompt
+        # STEP 7: Build user prompt (unchanged)
         if has_context:
             user_prompt = f"""Retrieved Context:
 {context}
@@ -215,10 +244,10 @@ Answer using ONLY the context above. If the answer is not in the context, say so
 
 Note: No relevant documents found in the {ministry} knowledge base. Answer from general knowledge but clearly state this limitation."""
 
-        # 7. Call Ollama
+        # STEP 8: Call Ollama (unchanged)
         response_text = await self._call_ollama(system_prompt, user_prompt)
 
-        # 8. Build result
+        # STEP 9: Build result with new metadata
         result = {
             "response": response_text,
             "sources_used": [
@@ -232,10 +261,14 @@ Note: No relevant documents found in the {ministry} knowledge base. Answer from 
             "chunks_used": len(ranked_chunks),
             "rag_used": has_context,
             "from_cache": False,
+            # NEW metadata
+            "query_rewrite": rewrite_result,
+            "hyde_used": hyde_used,
+            "hypothetical_doc_preview": hyp_doc[:150] if hyp_doc else None,
             "cache_stats": self.cache.stats()
         }
 
-        # 9. Cache result
+        # STEP 10: Cache result
         self.cache.set(question, ministry, result)
 
         return result
