@@ -17,7 +17,6 @@ from utils.pdf_extractor import PDFExtractor
 
 logger = logging.getLogger("bharatai")
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 CHROMA_DIR = os.getenv("CHROMA_DB_DIR", "./chroma_data")
 
 
