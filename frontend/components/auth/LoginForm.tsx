@@ -2,34 +2,68 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Lock, User, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Lock, User, Eye, EyeOff, ShieldCheck, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { authApi } from "@/lib/api";
 import { setToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
+const DEMO_ACCOUNTS = [
+  {
+    label: "Finance Officer",
+    ministry: "Ministry of Finance",
+    email: "officer@finance.gov.in",
+    password: "finance123",
+    color: "#3b82f6",
+    badge: "Officer",
+  },
+  {
+    label: "Defense Analyst",
+    ministry: "Ministry of Defense",
+    email: "analyst@defense.gov.in",
+    password: "defense123",
+    color: "#ef4444",
+    badge: "Analyst",
+  },
+];
+
 export const LoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState<string | null>(null);
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
     try {
       const response = await authApi.login({ email, password });
       setToken(response.data.access_token);
-      
       toast.success("Identity Verified. Welcome back, Officer.");
       router.push("/dashboard");
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Authentication Failed. Invalid credentials.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async (account: typeof DEMO_ACCOUNTS[0]) => {
+    setDemoLoading(account.email);
+    setEmail(account.email);
+    setPassword(account.password);
+    try {
+      const response = await authApi.login({ email: account.email, password: account.password });
+      setToken(response.data.access_token);
+      toast.success(`Welcome, ${account.label} — ${account.ministry}`);
+      router.push("/dashboard");
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Demo login failed.");
+    } finally {
+      setDemoLoading(null);
     }
   };
 
@@ -43,7 +77,7 @@ export const LoginForm = () => {
       <div className="relative overflow-hidden rounded-xl border border-[#222] bg-[#111] p-8 shadow-2xl">
         {/* Superior Amber Edge */}
         <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#f59e0b]" />
-        
+
         <div className="mb-8 flex flex-col items-center">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-[#f59e0b]/10 text-[#f59e0b]">
             <Lock className="h-6 w-6" />
@@ -114,8 +148,53 @@ export const LoginForm = () => {
           </Button>
         </form>
 
-        <div className="mt-8 flex flex-col items-center gap-4">
-          <div className="h-[1px] w-full bg-[#222]" />
+        {/* Demo Quick-Login Section */}
+        <div className="mt-8 flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-[1px] flex-1 bg-[#222]" />
+            <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-[#333]">
+              <Zap className="h-2.5 w-2.5" />
+              Demo Access
+            </span>
+            <div className="h-[1px] flex-1 bg-[#222]" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                onClick={() => handleDemoLogin(account)}
+                disabled={!!demoLoading}
+                className="group relative flex flex-col items-start gap-1 overflow-hidden rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] px-3 py-2.5 text-left transition-all hover:border-[#2a2a2a] hover:bg-[#111] disabled:opacity-50"
+              >
+                <div
+                  className="absolute left-0 top-0 bottom-0 w-[2px]"
+                  style={{ backgroundColor: account.color }}
+                />
+                <div className="flex w-full items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#f5f5f5]">
+                    {account.label}
+                  </span>
+                  <span
+                    className="rounded px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider"
+                    style={{ color: account.color, backgroundColor: `${account.color}15` }}
+                  >
+                    {account.badge}
+                  </span>
+                </div>
+                <span className="text-[9px] text-[#444]">{account.ministry}</span>
+                {demoLoading === account.email && (
+                  <span className="text-[8px] font-bold uppercase tracking-widest" style={{ color: account.color }}>
+                    Authenticating…
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col items-center">
           <p className="flex items-center gap-2 text-[10px] font-medium text-[#525252]">
             <ShieldCheck className="h-3 w-3" />
             Protected by NIC Security Framework

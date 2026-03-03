@@ -79,3 +79,12 @@ export const documentApi = {
   }),
   list: () => api.get('/api/documents/list'),
 };
+
+export const policyApi = {
+  getRules: () => api.get('/api/policy/rules'),
+  createRule: (rule: any) => api.post('/api/policy/rules', rule),
+  updateRule: (id: number, rule: any) => api.put(`/api/policy/rules/${id}`, rule),
+  deleteRule: (id: number) => api.delete(`/api/policy/rules/${id}`),
+  testRule: (payload: { query: string; ministry: string; clearance_level: number }) =>
+    api.post('/api/policy/rules/test', payload),
+};

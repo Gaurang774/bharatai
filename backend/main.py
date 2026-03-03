@@ -9,8 +9,9 @@ from models.user import User
 from models.conversation import Conversation, Message
 from models.audit_log import AuditLog
 from models.document import Document
+from models.policy_rule import PolicyRule
 
-from routers import auth, chat, audit, documents, models, rag_debug
+from routers import auth, chat, audit, documents, models, rag_debug, policy
 from services.auth_service import get_password_hash
 
 app = FastAPI(title="BharatAI API", version="1.0.0")
@@ -31,6 +32,137 @@ app.include_router(audit.router)
 app.include_router(documents.router)
 app.include_router(models.router)
 app.include_router(rag_debug.router)
+app.include_router(policy.router)
+
+from fastapi.openapi.utils import get_openapi
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="BharatAI API",
+        version="1.0.0",
+        description="Core API for Sovereign Gov AI Platform",
+        routes=app.routes,
+    )
+    # Fix the tokenUrl to be absolute and correct
+    if "components" in openapi_schema and "securitySchemes" in openapi_schema["components"]:
+        for scheme in openapi_schema["components"]["securitySchemes"].values():
+            if scheme.get("type") == "oauth2":
+                for flow in scheme.get("flows", {}).values():
+                    if "tokenUrl" in flow:
+                        flow["tokenUrl"] = "/api/auth/token"
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
+
+DEFAULT_RULES = [
+    # ── BLOCK rules (highest risk) ──────────────────────
+    {
+        "name": "Nuclear Information Block",
+        "pattern": "nuclear",
+        "pattern_type": "keyword",
+        "ministry": "ALL",
+        "action": "BLOCK",
+        "clearance_required": 5,
+        "description": "Block all nuclear-related queries"
+    },
+    {
+        "name": "Classified Document Block",
+        "pattern": "top secret|classified|above secret",
+        "pattern_type": "regex",
+        "ministry": "ALL",
+        "action": "BLOCK",
+        "clearance_required": 4,
+        "description": "Block queries referencing classified documents"
+    },
+    {
+        "name": "Troop Movement Block",
+        "pattern": "troop|troop deployment|military movement",
+        "pattern_type": "keyword",
+        "ministry": "ALL",
+        "action": "BLOCK",
+        "clearance_required": 4,
+        "description": "Block defense operational queries"
+    },
+    {
+        "name": "Cabinet Decision Block",
+        "pattern": "cabinet decision|cabinet minutes|cabinet meeting",
+        "pattern_type": "keyword",
+        "ministry": "ALL",
+        "action": "BLOCK",
+        "clearance_required": 4,
+        "description": "Block cabinet-level confidential queries"
+    },
+    
+    # ── REDACT rules (medium risk) ───────────────────────
+    {
+        "name": "Aadhaar Number Redaction",
+        "pattern": r"\b\d{4}\s?\d{4}\s?\d{4}\b",
+        "pattern_type": "regex",
+        "ministry": "ALL",
+        "action": "REDACT",
+        "clearance_required": 0,
+        "description": "Auto-redact Aadhaar numbers from all queries"
+    },
+    {
+        "name": "PAN Number Redaction",
+        "pattern": r"\b[A-Z]{5}\d{4}[A-Z]\b",
+        "pattern_type": "regex",
+        "ministry": "ALL",
+        "action": "REDACT",
+        "clearance_required": 0,
+        "description": "Auto-redact PAN card numbers"
+    },
+    {
+        "name": "Bank Account Redaction",
+        "pattern": r"\b\d{9,18}\b",
+        "pattern_type": "regex",
+        "ministry": "ALL",
+        "action": "REDACT",
+        "clearance_required": 0,
+        "description": "Auto-redact bank account numbers"
+    },
+    {
+        "name": "GPS Coordinates Redaction",
+        "pattern": r"\b\d{1,3}\.\d+[NS],?\s?\d{1,3}\.\d+[EW]\b",
+        "pattern_type": "regex",
+        "ministry": "ALL",
+        "action": "REDACT",
+        "clearance_required": 0,
+        "description": "Auto-redact GPS coordinates"
+    },
+    
+    # ── FLAG rules (low risk, monitor only) ─────────────
+    {
+        "name": "Tax Evasion Flag",
+        "pattern": "tax evasion|tax fraud|shell company",
+        "pattern_type": "keyword",
+        "ministry": "Finance",
+        "action": "FLAG",
+        "clearance_required": 0,
+        "description": "Flag tax investigation queries for oversight"
+    },
+    {
+        "name": "Defense Budget Flag",
+        "pattern": "defense budget|military budget|weapon procurement",
+        "pattern_type": "keyword",
+        "ministry": "Defense",
+        "action": "FLAG",
+        "clearance_required": 0,
+        "description": "Flag defense spending queries"
+    },
+    {
+        "name": "Missile Flag",
+        "pattern": "missile|ballistic|warhead",
+        "pattern_type": "keyword",
+        "ministry": "ALL",
+        "action": "FLAG",
+        "clearance_required": 0,
+        "description": "Flag missile-related queries"
+    },
+]
 
 
 DEMO_AUDIT_ENTRIES = [
@@ -86,22 +218,38 @@ def on_startup():
     try:
         if db.query(User).count() == 0:
             test_users = [
-                {"email": "admin@nic.gov.in", "password": "admin123", "role": "admin", "ministry": "NIC"},
-                {"email": "officer@finance.gov.in", "password": "finance123", "role": "officer", "ministry": "Finance"},
-                {"email": "analyst@defense.gov.in", "password": "defense123", "role": "analyst", "ministry": "Defense"},
+                {"email": "admin@nic.gov.in", "password": "admin123", "role": "admin", "ministry": "NIC", "clearance_level": 5},
+                {"email": "officer@finance.gov.in", "password": "finance123", "role": "officer", "ministry": "Finance", "clearance_level": 2},
+                {"email": "analyst@defense.gov.in", "password": "defense123", "role": "analyst", "ministry": "Defense", "clearance_level": 3},
             ]
             for u in test_users:
                 new_user = User(
                     email=u["email"],
                     password_hash=get_password_hash(u["password"]),
                     role=u["role"],
-                    ministry=u["ministry"]
+                    ministry=u["ministry"],
+                    clearance_level=u.get("clearance_level", 1)
                 )
                 db.add(new_user)
             db.commit()
             print("Demo users seeded successfully.")
         else:
             print("Users already exist, skipping seed.")
+            
+        # Seed default policy rules
+        if db.query(PolicyRule).count() == 0:
+            # Assume user ID 1 is the admin seeded above
+            for rule_data in DEFAULT_RULES:
+                rule = PolicyRule(
+                    **rule_data,
+                    created_by=1,
+                    is_active=True,
+                    trigger_count=0,
+                    version=1
+                )
+                db.add(rule)
+            db.commit()
+            print(f"Seeded {len(DEFAULT_RULES)} default policy rules")
         
         # Seed audit data for demo
         if db.query(AuditLog).count() == 0:
@@ -125,6 +273,12 @@ def on_startup():
             print(f"[OK] {len(DEMO_AUDIT_ENTRIES)} realistic audit entries seeded.")
         else:
             print("[OK] Audit data already exists, skipping seed.")
+
+        print("\n--- Registered Routes ---")
+        for route in app.routes:
+            if hasattr(route, "path"):
+                print(f"Path: {route.path}")
+        print("-------------------------\n")
 
     except Exception as e:
         print(f"⚠️ Database seed error: {e}")

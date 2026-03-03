@@ -13,6 +13,7 @@ class AuditLog(Base):
     full_query = Column(Text)
     response_preview = Column(Text)
     is_flagged = Column(Boolean, default=False)
-    sensitivity_keywords_found = Column(Text) # JSON string or comma-separated
+    sensitivity_level = Column(String(20), default="SAFE")  # SAFE / SENSITIVE / FLAGGED / BLOCKED
+    sensitivity_keywords_found = Column(Text)  # comma-separated keywords
     response_time_ms = Column(Integer)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

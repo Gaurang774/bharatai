@@ -13,7 +13,8 @@ class AuditService:
         response: str,
         is_flagged: bool,
         found_keywords: List[str],
-        response_time_ms: int
+        response_time_ms: int,
+        sensitivity_level: str = "SAFE"
     ):
         audit_entry = AuditLog(
             user_id=user_id,
@@ -23,7 +24,8 @@ class AuditService:
             full_query=query,
             response_preview=response[:200],
             is_flagged=is_flagged,
-            sensitivity_keywords_found=",".join(found_keywords) if found_keywords else "",
+            sensitivity_level=sensitivity_level.upper(),
+            sensitivity_keywords_found=",".join(found_keywords) if isinstance(found_keywords, list) else str(found_keywords),
             response_time_ms=response_time_ms
         )
         db.add(audit_entry)

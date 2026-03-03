@@ -30,10 +30,34 @@ class LLMService:
         }
 
         try:
-            # Increased timeout to 60s for local model loading
-            response = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, stream=True, timeout=60)
+            # First try with requested model
+            response = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, stream=True, timeout=180)
             response.raise_for_status()
-            
+        except requests.exceptions.HTTPError as he:
+            if response.status_code == 404 and self.model != DEFAULT_MODEL:
+                print(f"Model {self.model} not found in Ollama. Falling back to {DEFAULT_MODEL}")
+                payload["model"] = DEFAULT_MODEL
+                try:
+                    response = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, stream=True, timeout=180)
+                    response.raise_for_status()
+                except Exception as secondary_error:
+                    print(f"Ollama Fallback Error: {secondary_error}")
+                    yield from self._mock_streaming_response(prompt)
+                    return
+            else:
+                print(f"Ollama HTTP Error: {he}")
+                yield from self._mock_streaming_response(prompt)
+                return
+        except requests.exceptions.ConnectionError:
+            print(f"CRITICAL: Cannot connect to Ollama at {OLLAMA_URL}. Ensure it is running.")
+            yield from self._mock_streaming_response(prompt)
+            return
+        except Exception as e:
+            print(f"Ollama Error: {e}. Falling back to mock response.")
+            yield from self._mock_streaming_response(prompt)
+            return
+
+        try:
             for line in response.iter_lines():
                 if line:
                     chunk = json.loads(line.decode("utf-8"))
@@ -41,6 +65,9 @@ class LLMService:
                         yield chunk["response"]
                     if chunk.get("done"):
                         break
+        except requests.exceptions.ConnectionError:
+            print(f"CRITICAL: Cannot connect to Ollama at {OLLAMA_URL}. Ensure it is running.")
+            yield from self._mock_streaming_response(prompt)
         except Exception as e:
             print(f"Ollama Error: {e}. Falling back to mock response.")
             yield from self._mock_streaming_response(prompt)
