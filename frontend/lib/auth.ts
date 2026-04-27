@@ -11,6 +11,9 @@ export interface UserPayload {
 
 export const setToken = (token: string) => {
   if (typeof window !== 'undefined') {
+    // Clear any stale ministry context from a previous session
+    localStorage.removeItem('bharatai_ministry');
+    localStorage.removeItem('bharatai_last_user');
     localStorage.setItem(TOKEN_KEY, token);
   }
 };

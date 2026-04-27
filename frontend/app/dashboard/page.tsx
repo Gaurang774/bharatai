@@ -24,7 +24,15 @@ interface PendingOptions {
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<UserPayload | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("bharatai_chat_messages");
+        if (saved) return JSON.parse(saved) as Message[];
+      } catch {}
+    }
+    return [];
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [isWarningOpen, setIsWarningOpen] = useState(false);
   const [pendingMessage, setPendingMessage] = useState("");
@@ -79,10 +87,12 @@ export default function DashboardPage() {
 
     const newMessages: Message[] = [...messages, { role: "user", content: text }];
     setMessages(newMessages);
+    try { sessionStorage.setItem("bharatai_chat_messages", JSON.stringify(newMessages)); } catch {}
 
     try {
+      const activeMinistry = localStorage.getItem("bharatai_ministry") || user?.ministry || "General";
       const res = await chatApi.sendMessage(text, {
-        ministry_context: user?.ministry || "General",
+        ministry_context: activeMinistry,
         language: options.language,
       });
 
@@ -104,10 +114,11 @@ export default function DashboardPage() {
         if (chunk.includes("[RAG_META:")) continue;
 
         assistantContent += chunk;
-        setMessages((prev) => [
-          ...prev.slice(0, -1),
-          { role: "assistant", content: assistantContent },
-        ]);
+        setMessages((prev) => {
+          const updated: Message[] = [...prev.slice(0, -1), { role: "assistant" as const, content: assistantContent }];
+          try { sessionStorage.setItem("bharatai_chat_messages", JSON.stringify(updated)); } catch {}
+          return updated;
+        });
       }
     } catch (err) {
       toast.error("Security Interception Error: Failed to retrieve sovereign intelligence.");

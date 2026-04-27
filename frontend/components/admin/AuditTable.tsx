@@ -27,10 +27,52 @@ interface AuditLog {
   full_query: string;
   response_preview: string;
   is_flagged: boolean;
+  sensitivity_level?: string;  // SAFE | SENSITIVE | FLAGGED | BLOCKED
   sensitivity_keywords_found: string;
   response_time_ms: number;
   role?: string;
 }
+
+const SensitivityBadge = ({ level, is_flagged }: { level?: string; is_flagged: boolean }) => {
+  const effectiveLevel = level?.toUpperCase() || (is_flagged ? "FLAGGED" : "SAFE");
+
+  if (effectiveLevel === "BLOCKED") {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-600 opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.7)]" />
+        </div>
+        <span className="text-[10px] font-black uppercase tracking-[0.1em] text-red-600">Blocked</span>
+      </div>
+    );
+  }
+  if (effectiveLevel === "FLAGGED") {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-500 opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
+        </div>
+        <span className="text-[10px] font-black uppercase tracking-[0.1em] text-orange-500">Flagged</span>
+      </div>
+    );
+  }
+  if (effectiveLevel === "SENSITIVE") {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="h-2 w-2 rounded-full bg-yellow-400" />
+        <span className="text-[10px] font-black uppercase tracking-[0.1em] text-yellow-400">Sensitive</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2 text-green-500/60">
+      <CheckCircle2 className="h-3.5 w-3.5" />
+      <span className="text-[10px] font-black uppercase tracking-[0.1em]">Safe</span>
+    </div>
+  );
+};
 
 const MinistryPill = ({ ministry }: { ministry: string }) => {
   const ministryColors: Record<string, string> = {
@@ -109,7 +151,9 @@ export const AuditTable = ({ logs }: { logs: AuditLog[] }) => {
                   onClick={() => toggleExpand(log.id)}
                   className={cn(
                     "group relative cursor-pointer border-l-[3px] border-transparent transition-all hover:bg-[#111] active:bg-[#141414]",
-                    log.is_flagged ? "border-l-red-500 bg-red-500/[0.04]" : "",
+                    log.sensitivity_level === "BLOCKED" ? "border-l-red-600 bg-red-600/[0.06]" :
+                    log.sensitivity_level === "FLAGGED" ? "border-l-orange-500 bg-orange-500/[0.04]" :
+                    log.sensitivity_level === "SENSITIVE" ? "border-l-yellow-400 bg-yellow-400/[0.03]" : "",
                     expandedId === log.id ? (log.is_flagged ? "bg-red-500/[0.06]" : "bg-[#111] border-l-[#f59e0b]") : ""
                   )}
                 >
@@ -169,27 +213,7 @@ export const AuditTable = ({ logs }: { logs: AuditLog[] }) => {
 
                   {/* Risk Status Column */}
                   <td className="px-6 py-5 whitespace-nowrap">
-                    {log.is_flagged ? (
-                      <div className="flex items-center gap-2">
-                        <motion.div 
-                          className="flex items-center gap-2"
-                          initial={{ x: 0 }}
-                          animate={{ x: [0, -2, 2, -2, 2, 0] }}
-                          transition={{ duration: 0.4, repeat: Infinity, repeatDelay: 3 }}
-                        >
-                          <div className="relative flex h-2 w-2">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
-                            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></span>
-                          </div>
-                          <span className="text-[10px] font-black uppercase tracking-[0.1em] text-red-500">Flagged</span>
-                        </motion.div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-green-500/50">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.1em]">Secure</span>
-                      </div>
-                    )}
+                    <SensitivityBadge level={log.sensitivity_level} is_flagged={log.is_flagged} />
                   </td>
 
                   {/* Latency Column */}

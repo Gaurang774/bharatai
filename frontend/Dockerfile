@@ -9,8 +9,9 @@ WORKDIR /app
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
+# Install dependencies ignoring peer dependency conflicts
 COPY package*.json ./
-RUN npm ci --frozen-lockfile
+RUN npm install --legacy-peer-deps
 
 COPY . .
 RUN npm run build
@@ -29,7 +30,6 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # Copy built output
-COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 

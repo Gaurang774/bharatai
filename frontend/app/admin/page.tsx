@@ -6,7 +6,8 @@ import { StatsCards } from "@/components/admin/StatsCards";
 import { FilterBar } from "@/components/admin/FilterBar";
 import { AuditTable } from "@/components/admin/AuditTable";
 import { ExportButton } from "@/components/admin/ExportButton";
-import { Shield, Lock, RotateCcw, Clock } from "lucide-react";
+import { PolicyRulesPanel } from "@/components/admin/PolicyRulesPanel";
+import { Shield, Lock, RotateCcw, Clock, ShieldAlert, ListFilter } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getUser, type UserPayload } from "@/lib/auth";
 import { adminApi } from "@/lib/api";
@@ -23,6 +24,7 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState(0);
+  const [activeTab, setActiveTab] = useState<"audit" | "policy">("audit");
 
   const filteredLogs = logs.filter(log => {
       const q = searchQuery.toLowerCase();
@@ -130,18 +132,45 @@ export default function AdminPage() {
             </div>
           </header>
 
+          {/* Tab Nav */}
+          <div className="mb-8 flex gap-1 rounded-xl border border-[#222] bg-[#0c0c0c] p-1 w-fit">
+            {[
+              { key: "audit", label: "Audit Logs", icon: ShieldAlert },
+              { key: "policy", label: "Policy Rules", icon: ListFilter },
+            ].map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key as "audit" | "policy")}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all",
+                  activeTab === key
+                    ? "bg-[#f59e0b] text-[#080808]"
+                    : "text-[#525252] hover:text-[#a3a3a3]"
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
+
           <div className="space-y-10">
-            <StatsCards stats={stats} />
-            
-            <div className="space-y-5">
-              <FilterBar 
-                resultCount={filteredLogs.length}
-                totalCount={logs.length}
-                onSearch={setSearchQuery} 
-                onFilterChange={() => {}} 
-              />
-              <AuditTable logs={filteredLogs} />
-            </div>
+            {activeTab === "audit" ? (
+              <>
+                <StatsCards stats={stats} />
+                <div className="space-y-5">
+                  <FilterBar 
+                    resultCount={filteredLogs.length}
+                    totalCount={logs.length}
+                    onSearch={setSearchQuery} 
+                    onFilterChange={() => {}} 
+                  />
+                  <AuditTable logs={filteredLogs} />
+                </div>
+              </>
+            ) : (
+              <PolicyRulesPanel />
+            )}
           </div>
         </div>
 

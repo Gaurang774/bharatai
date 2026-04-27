@@ -20,8 +20,8 @@ BharatAI is a secure, sovereign AI assistant designed for Indian government empl
            v        v         v
     +------+---+ +--+-----+ +-+-------+
     |PostgreSQL| |ChromaDB| | Ollama  |
-    | (Users,  | |(Vector  | |(Llama3  |
-    |  Logs)   | | Store)  | | Local)  |
+    | (Users,  | |(Vector  | |(Llama3 |
+    |  Logs)   | | Store)  | | Local) |
     +----------+ +---------+ +---------+
 ```
 
@@ -38,7 +38,7 @@ BharatAI is a secure, sovereign AI assistant designed for Indian government empl
 
 - Docker & Docker Compose
 - [Ollama](https://ollama.com/) installed and running locally
-- Run `ollama pull llama3`
+- Run `ollama pull gemma3:1b` (or the model specified in `.env`)
 
 ### Run with Docker (Recommended)
 
@@ -58,6 +58,8 @@ BharatAI is a secure, sovereign AI assistant designed for Indian government empl
 
 ```bash
 cd backend
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
@@ -82,7 +84,7 @@ npm run dev
 
 - **Prompt Firewall**: Scans for 15+ sensitive government keywords (e.g., Aadhaar, classified).
 - **Ministry Context**: Tailors LLM responses based on selected ministry.
-- **Sovereign RAG**: Upload PDFs to the Admin Panel for ministry-specific knowledge retrieval.
+- **Sovereign RAG**: Upload PDFs to the Admin Panel for ministry-specific knowledge retrieval. 
 - **Full Audit**: Admin dashboard monitors every interaction with real-time risk flagging.
 
 ---
