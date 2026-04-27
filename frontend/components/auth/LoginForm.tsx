@@ -11,12 +11,22 @@ import toast from "react-hot-toast";
 
 const DEMO_ACCOUNTS = [
   {
+    label: "NIC Admin",
+    ministry: "National Informatics Centre",
+    email: "admin@nic.gov.in",
+    password: "admin123",
+    color: "#f59e0b",
+    badge: "Admin",
+    featured: true,
+  },
+  {
     label: "Finance Officer",
     ministry: "Ministry of Finance",
     email: "officer@finance.gov.in",
     password: "finance123",
     color: "#3b82f6",
     badge: "Officer",
+    featured: false,
   },
   {
     label: "Defense Analyst",
@@ -25,6 +35,7 @@ const DEMO_ACCOUNTS = [
     password: "defense123",
     color: "#ef4444",
     badge: "Analyst",
+    featured: false,
   },
 ];
 
@@ -159,38 +170,81 @@ export const LoginForm = () => {
             <div className="h-[1px] flex-1 bg-[#222]" />
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            {DEMO_ACCOUNTS.map((account) => (
+          <div className="flex flex-col gap-2">
+            {/* Featured NIC Admin Button */}
+            {DEMO_ACCOUNTS.filter(a => a.featured).map((account) => (
               <button
                 key={account.email}
                 type="button"
                 onClick={() => handleDemoLogin(account)}
                 disabled={!!demoLoading}
-                className="group relative flex flex-col items-start gap-1 overflow-hidden rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] px-3 py-2.5 text-left transition-all hover:border-[#2a2a2a] hover:bg-[#111] disabled:opacity-50"
+                className="group relative flex items-center gap-3 overflow-hidden rounded-lg border border-[#f59e0b]/30 bg-[#f59e0b]/5 px-4 py-3 text-left transition-all hover:border-[#f59e0b]/60 hover:bg-[#f59e0b]/10 disabled:opacity-50"
               >
                 <div
-                  className="absolute left-0 top-0 bottom-0 w-[2px]"
+                  className="absolute left-0 top-0 bottom-0 w-[3px]"
                   style={{ backgroundColor: account.color }}
                 />
-                <div className="flex w-full items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-[#f5f5f5]">
-                    {account.label}
-                  </span>
-                  <span
-                    className="rounded px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider"
-                    style={{ color: account.color, backgroundColor: `${account.color}15` }}
-                  >
-                    {account.badge}
-                  </span>
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#f59e0b]/10">
+                  <ShieldCheck className="h-4 w-4 text-[#f59e0b]" />
                 </div>
-                <span className="text-[9px] text-[#444]">{account.ministry}</span>
-                {demoLoading === account.email && (
-                  <span className="text-[8px] font-bold uppercase tracking-widest" style={{ color: account.color }}>
-                    Authenticating…
+                <div className="flex flex-1 flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-[#f5f5f5]">
+                      {account.label}
+                    </span>
+                    <span
+                      className="rounded px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider"
+                      style={{ color: account.color, backgroundColor: `${account.color}15` }}
+                    >
+                      {account.badge}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-[#666]">{account.ministry} — Governance & Audit</span>
+                </div>
+                {demoLoading === account.email ? (
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-[#f59e0b] animate-pulse">
+                    Verifying…
                   </span>
+                ) : (
+                  <Zap className="h-3.5 w-3.5 text-[#f59e0b]/50 transition-colors group-hover:text-[#f59e0b]" />
                 )}
               </button>
             ))}
+
+            {/* Other Demo Accounts */}
+            <div className="grid grid-cols-2 gap-2">
+              {DEMO_ACCOUNTS.filter(a => !a.featured).map((account) => (
+                <button
+                  key={account.email}
+                  type="button"
+                  onClick={() => handleDemoLogin(account)}
+                  disabled={!!demoLoading}
+                  className="group relative flex flex-col items-start gap-1 overflow-hidden rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] px-3 py-2.5 text-left transition-all hover:border-[#2a2a2a] hover:bg-[#111] disabled:opacity-50"
+                >
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-[2px]"
+                    style={{ backgroundColor: account.color }}
+                  />
+                  <div className="flex w-full items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-[#f5f5f5]">
+                      {account.label}
+                    </span>
+                    <span
+                      className="rounded px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider"
+                      style={{ color: account.color, backgroundColor: `${account.color}15` }}
+                    >
+                      {account.badge}
+                    </span>
+                  </div>
+                  <span className="text-[9px] text-[#444]">{account.ministry}</span>
+                  {demoLoading === account.email && (
+                    <span className="text-[8px] font-bold uppercase tracking-widest" style={{ color: account.color }}>
+                      Authenticating…
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
