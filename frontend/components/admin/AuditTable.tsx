@@ -60,10 +60,31 @@ export const AuditTable = ({ logs }: { logs: AuditLog[] }) => {
      setCurrentPage(1);
   }, [logs.length]);
 
-  const totalPages = Math.ceil(logs.length / itemsPerPage) || 1;
+  // Actually sort the logs before paginating
+  const sortedLogs = React.useMemo(() => {
+    if (!sortConfig) return logs;
+    return [...logs].sort((a, b) => {
+      if (sortConfig.key === 'created_at') {
+        const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        return sortConfig.direction === 'asc' ? diff : -diff;
+      }
+      if (sortConfig.key === 'risk') {
+        // flagged entries sort first on desc
+        const diff = (a.is_flagged ? 1 : 0) - (b.is_flagged ? 1 : 0);
+        return sortConfig.direction === 'asc' ? diff : -diff;
+      }
+      if (sortConfig.key === 'latency') {
+        const diff = a.response_time_ms - b.response_time_ms;
+        return sortConfig.direction === 'asc' ? diff : -diff;
+      }
+      return 0;
+    });
+  }, [logs, sortConfig]);
+
+  const totalPages = Math.ceil(sortedLogs.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, logs.length);
-  const currentLogs = logs.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + itemsPerPage, sortedLogs.length);
+  const currentLogs = sortedLogs.slice(startIndex, endIndex);
 
   const toggleExpand = (id: number) => {
     setExpandedId(expandedId === id ? null : id);
@@ -220,7 +241,7 @@ export const AuditTable = ({ logs }: { logs: AuditLog[] }) => {
                 <AnimatePresence>
                   {expandedId === log.id && (
                     <tr>
-                      <td colSpan={6} className="bg-[#050505] p-0 border-y border-[#161616]">
+                      <td colSpan={5} className="bg-[#050505] p-0 border-y border-[#161616]">  
                         <motion.div
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
@@ -317,7 +338,7 @@ export const AuditTable = ({ logs }: { logs: AuditLog[] }) => {
           </div>
           <div className="h-4 w-[1px] bg-[#222]" />
           <div className="text-[10px] text-[#525252] uppercase font-bold tracking-[0.2em]">
-            Records <span className="text-[#f5f5f5] ml-1">{logs.length === 0 ? 0 : startIndex + 1} — {endIndex}</span> of <span className="text-[#f5f5f5] ml-1">{logs.length}</span>
+            Records <span className="text-[#f5f5f5] ml-1">{sortedLogs.length === 0 ? 0 : startIndex + 1} — {endIndex}</span> of <span className="text-[#f5f5f5] ml-1">{sortedLogs.length}</span>
           </div>
         </div>
         

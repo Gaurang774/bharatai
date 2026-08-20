@@ -1,36 +1,58 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { Lock, User, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Lock, User, Eye, EyeOff, ShieldCheck, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { authApi } from "@/lib/api";
 import { setToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
+const INSTANT_ACCOUNTS = [
+  { label: "NIC Admin", email: "admin@nic.gov.in", password: "admin123", role: "ADMIN", color: "amber" },
+  { label: "Finance Officer", email: "officer@finance.gov.in", password: "finance123", role: "OFFICER", color: "blue" },
+  { label: "Defense Analyst", email: "analyst@defense.gov.in", password: "defense123", role: "ANALYST", color: "red" },
+];
+
 export const LoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingAccount, setLoadingAccount] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
+  const doLogin = async (loginEmail: string, loginPassword: string, accountLabel?: string) => {
     try {
-      const response = await authApi.login({ email, password });
+      const response = await authApi.login({ email: loginEmail, password: loginPassword });
       setToken(response.data.access_token);
-      
       toast.success("Identity Verified. Welcome back, Officer.");
       router.push("/dashboard");
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Authentication Failed. Invalid credentials.");
-    } finally {
-      setIsLoading(false);
     }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    await doLogin(email, password);
+    setIsLoading(false);
+  };
+
+  const handleInstantLogin = async (account: typeof INSTANT_ACCOUNTS[0]) => {
+    setLoadingAccount(account.label);
+    setEmail(account.email);
+    setPassword(account.password);
+    await doLogin(account.email, account.password, account.label);
+    setLoadingAccount(null);
+  };
+
+  const accentClasses: Record<string, string> = {
+    amber: "border-[#f59e0b]/30 bg-[#f59e0b]/5 text-[#f59e0b] hover:bg-[#f59e0b]/10 hover:border-[#f59e0b]/50",
+    blue:  "border-blue-500/30 bg-blue-500/5 text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/50",
+    red:   "border-red-500/30 bg-red-500/5 text-red-400 hover:bg-red-500/10 hover:border-red-500/50",
   };
 
   return (
@@ -60,6 +82,42 @@ export const LoginForm = () => {
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500"></span>
             </span>
             Sovereign Mode Active
+          </div>
+        </div>
+
+        {/* ── Instant Login Section ── */}
+        <div className="mb-7">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="h-3 w-3 text-[#f59e0b]" />
+            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-[#333]">
+              Instant Access — Demo Credentials
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {INSTANT_ACCOUNTS.map((acc) => (
+              <motion.button
+                key={acc.label}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                type="button"
+                disabled={!!loadingAccount || isLoading}
+                onClick={() => handleInstantLogin(acc)}
+                className={`relative flex flex-col items-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-all disabled:opacity-50 disabled:cursor-not-allowed ${accentClasses[acc.color]}`}
+              >
+                {loadingAccount === acc.label ? (
+                  <span className="h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
+                ) : (
+                  <span className="text-[9px] font-black uppercase tracking-tighter leading-none">{acc.label}</span>
+                )}
+                <span className="text-[7px] font-mono opacity-50 truncate w-full text-center">{acc.role}</span>
+              </motion.button>
+            ))}
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <div className="h-[1px] flex-1 bg-[#1c1c1c]" />
+            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-[#222]">or enter manually</span>
+            <div className="h-[1px] flex-1 bg-[#1c1c1c]" />
           </div>
         </div>
 

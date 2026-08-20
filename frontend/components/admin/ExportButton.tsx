@@ -1,27 +1,42 @@
 "use client";
 
 import React, { useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Download } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { adminApi } from "@/lib/api";
+import { getToken } from "@/lib/auth";
 import toast from "react-hot-toast";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export const ExportButton = () => {
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleExport = () => {
+  const handleExport = async () => {
     setIsExporting(true);
-    
     try {
-        const url = adminApi.exportLogs();
-        window.open(url, '_blank');
-        toast.success("Audit report export initiated.", {
-            icon: "📂"
-        });
+      const token = getToken();
+      const res = await fetch(`${API_BASE_URL}/api/audit/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) throw new Error("Export failed");
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const timestamp = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `bharatai_audit_${timestamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      toast.success("Audit log exported successfully.", { icon: "📂" });
     } catch (err) {
-        toast.error("Failed to export logs.");
+      toast.error("Export failed. Check your admin permissions.");
     } finally {
-        setIsExporting(false);
+      setIsExporting(false);
     }
   };
 

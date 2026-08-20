@@ -23,6 +23,10 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState(0);
+  const [activeFilters, setActiveFilters] = useState<{ ministry: string | null; flaggedOnly: boolean }>({
+    ministry: null,
+    flaggedOnly: false,
+  });
 
   const filteredLogs = logs.filter(log => {
       const q = searchQuery.toLowerCase();
@@ -54,12 +58,17 @@ export default function AdminPage() {
     return () => clearInterval(timer);
   }, [router]);
 
-  const fetchAdminData = async () => {
+  const fetchAdminData = async (filters?: { ministry: string | null; flaggedOnly: boolean }) => {
     setIsLoading(true);
     try {
+      const params: Record<string, any> = { page: 1 };
+      const f = filters ?? activeFilters;
+      if (f.ministry) params.ministry = f.ministry;
+      if (f.flaggedOnly) params.flagged_only = true;
+
       const [statsRes, logsRes] = await Promise.all([
         adminApi.getStats(),
-        adminApi.getLogs({ page: 1 })
+        adminApi.getLogs(params)
       ]);
       setStats(statsRes.data);
       setLogs(logsRes.data);
@@ -69,6 +78,11 @@ export default function AdminPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleFilterChange = (filters: { ministry: string | null; flaggedOnly: boolean }) => {
+    setActiveFilters(filters);
+    fetchAdminData(filters);
   };
 
   const formatLastRefreshed = (seconds: number) => {
@@ -119,7 +133,7 @@ export default function AdminPage() {
                   <span className="text-[10px] font-mono font-bold text-[#525252]">{formatLastRefreshed(lastRefreshed)}</span>
                </div>
                <button 
-                 onClick={fetchAdminData}
+                 onClick={() => fetchAdminData()}
                  disabled={isLoading}
                  className="flex items-center gap-3 rounded-xl border border-[#222] bg-[#111] px-5 py-3 text-[10px] font-black uppercase tracking-widest text-[#a3a3a3] hover:text-[#f5f5f5] hover:border-[#333] transition-all shadow-sm active:scale-95"
                >
@@ -138,7 +152,7 @@ export default function AdminPage() {
                 resultCount={filteredLogs.length}
                 totalCount={logs.length}
                 onSearch={setSearchQuery} 
-                onFilterChange={() => {}} 
+                onFilterChange={handleFilterChange} 
               />
               <AuditTable logs={filteredLogs} />
             </div>

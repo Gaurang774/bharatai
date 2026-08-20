@@ -80,9 +80,15 @@ export default function DashboardPage() {
     const newMessages: Message[] = [...messages, { role: "user", content: text }];
     setMessages(newMessages);
 
+    // Read persisted ministry from sidebar selection, fallback to JWT ministry
+    const ministryContext =
+      (typeof window !== "undefined" && localStorage.getItem("bharatai_selected_ministry")) ||
+      user?.ministry ||
+      "General";
+
     try {
       const res = await chatApi.sendMessage(text, {
-        ministry_context: user?.ministry || "General",
+        ministry_context: ministryContext,
         language: options.language,
       });
 

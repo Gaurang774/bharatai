@@ -150,7 +150,7 @@ export const StatsCards = ({ stats }: { stats: any }) => {
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
       <StatsCard 
         title="Total Queries (24H)"
-        value={stats?.total_queries || 1248}
+        value={stats?.total_queries_today ?? 1248}
         trend={{ value: "+12.5%", isPositive: true }}
         icon={Zap}
         accent="blue"
@@ -159,7 +159,7 @@ export const StatsCards = ({ stats }: { stats: any }) => {
       />
       <StatsCard 
         title="Flagged Threats"
-        value={stats?.flagged_queries || 24}
+        value={stats?.flagged_queries ?? 24}
         trend={{ value: "Priority Low", isPositive: false }}
         icon={ShieldAlert}
         accent="red"
@@ -168,7 +168,7 @@ export const StatsCards = ({ stats }: { stats: any }) => {
       />
       <StatsCard 
         title="Institutional Nodes"
-        value={stats?.active_ministries || 7}
+        value={stats?.active_ministries ?? 7}
         icon={Building2}
         accent="amber"
         delay={0.3}
@@ -176,7 +176,7 @@ export const StatsCards = ({ stats }: { stats: any }) => {
       />
       <StatsCard 
         title="Mean Response"
-        value={stats?.avg_ms || 840}
+        value={stats?.avg_response_ms ?? 840}
         suffix="ms"
         trend={{ value: "Stable", isPositive: true }}
         icon={Users}

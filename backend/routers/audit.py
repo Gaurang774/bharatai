@@ -36,25 +36,47 @@ async def get_stats(db: Session = Depends(get_db), admin: User = Depends(check_a
     total_queries = db.query(AuditLog).count()
     flagged_queries = db.query(AuditLog).filter(AuditLog.is_flagged == True).count()
     active_users = db.query(func.count(AuditLog.user_id.distinct())).scalar()
+
+    # Count distinct ministries that have logs
+    active_ministries = db.query(func.count(AuditLog.ministry.distinct())).scalar() or 0
+
+    # Average response time in ms
+    avg_ms_result = db.query(func.avg(AuditLog.response_time_ms)).scalar()
+    avg_response_ms = round(avg_ms_result) if avg_ms_result else 0
     
     most_active_ministry = db.query(
         AuditLog.ministry, func.count(AuditLog.id).label("count")
     ).group_by(AuditLog.ministry).order_by(func.count(AuditLog.id).desc()).first()
 
     return {
-        "total_queries_today": total_queries, # Simplification for demo
+        "total_queries_today": total_queries,
         "flagged_queries": flagged_queries,
         "active_users": active_users,
+        "active_ministries": active_ministries,
+        "avg_response_ms": avg_response_ms,
         "most_active_ministry": most_active_ministry[0] if most_active_ministry else "N/A"
     }
 
 @router.get("/export")
 async def export_audit_csv(db: Session = Depends(get_db), admin: User = Depends(check_admin)):
-    # Simulating export - in real world this would return a StreamingResponse with CSV
-    logs = db.query(AuditLog).all()
-    header = "Timestamp,User,Ministry,Query,Flagged,Keywords,Time(ms)\n"
-    rows = []
+    from fastapi.responses import StreamingResponse
+    import io
+
+    logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).all()
+
+    output = io.StringIO()
+    output.write("Timestamp,User,Ministry,Query,Flagged,Keywords,Time(ms)\n")
     for log in logs:
-        rows.append(f"{log.created_at},{log.user_email},{log.ministry},{log.query_preview},{log.is_flagged},{log.sensitivity_keywords_found},{log.response_time_ms}")
-    
-    return {"csv_data": header + "\n".join(rows)}
+        # Escape commas in query text
+        query_safe = f'"{log.query_preview}"' if "," in (log.query_preview or "") else (log.query_preview or "")
+        output.write(
+            f"{log.created_at},{log.user_email},{log.ministry},"
+            f"{query_safe},{log.is_flagged},{log.sensitivity_keywords_found},{log.response_time_ms}\n"
+        )
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=bharatai_audit_logs.csv"}
+    )
