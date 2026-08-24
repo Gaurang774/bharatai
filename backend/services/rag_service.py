@@ -327,8 +327,11 @@ Rules:
         """
         logger.info(f"Ingesting document: {filename} for ministry: {ministry}")
 
-        # 1. Extract text (handles scanned PDFs via OCR)
-        extracted = self.extractor.extract(filepath)
+        # 1. Extract text (handles scanned PDFs via OCR and raw images)
+        if filepath.lower().endswith(('.png', '.jpg', '.jpeg')):
+            extracted = self.extractor.extract_image(filepath)
+        else:
+            extracted = self.extractor.extract(filepath)
 
         if not extracted["text"].strip():
             raise ValueError("Could not extract text from document")

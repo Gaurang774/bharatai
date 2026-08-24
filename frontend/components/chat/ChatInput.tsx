@@ -47,7 +47,13 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAttachedFile({ file });
+    
+    let preview: string | undefined;
+    if (file.type.startsWith("image/")) {
+        preview = URL.createObjectURL(file);
+    }
+    
+    setAttachedFile({ file, preview });
     // Reset input so same file can be re-selected
     e.target.value = "";
   };
@@ -78,7 +84,11 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
       {/* Attached File Preview */}
       {attachedFile && (
         <div className="mx-auto mb-2 flex max-w-4xl items-center gap-2 rounded-xl border border-[#222] bg-[#111] px-4 py-2.5">
-          <FileText className="h-4 w-4 shrink-0 text-[#f59e0b]" />
+          {attachedFile.preview ? (
+            <img src={attachedFile.preview} alt="preview" className="h-6 w-6 rounded object-cover border border-[#333]" />
+          ) : (
+            <FileText className="h-4 w-4 shrink-0 text-[#f59e0b]" />
+          )}
           <span className="flex-1 truncate text-xs font-medium text-[#a3a3a3]">
             {attachedFile.file.name}
           </span>
@@ -127,7 +137,7 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.txt,.doc,.docx,.csv"
+                accept=".pdf,.txt,.doc,.docx,.csv,.jpg,.jpeg,.png"
                 className="hidden"
                 onChange={handleFileChange}
               />

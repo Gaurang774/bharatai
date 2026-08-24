@@ -21,6 +21,7 @@ interface Message {
   rag_doc_count?: number;
   rag_confidence?: number;
   web_sources?: WebSource[];
+  image_url?: string;
 }
 
 export const MessageBubble = ({ message }: { message: Message }) => {
@@ -71,6 +72,15 @@ export const MessageBubble = ({ message }: { message: Message }) => {
             : "bg-[#161616] border border-[#222] text-[#f5f5f5] rounded-tl-none hover:border-[#333]"
         )}
       >
+        {message.image_url && (
+          <div className="mb-3 overflow-hidden rounded-lg border border-[#333]">
+            <img 
+              src={message.image_url} 
+              alt="Attached Image" 
+              className="max-h-64 w-auto object-cover"
+            />
+          </div>
+        )}
         <p className="whitespace-pre-wrap">{message.content}</p>
 
         {!isUser && (

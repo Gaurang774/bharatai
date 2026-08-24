@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  image_url?: string;
 }
 
 interface PendingOptions {
@@ -88,7 +89,12 @@ export default function DashboardPage() {
       }
     }
 
-    const newMessages: Message[] = [...messages, { role: "user", content: text }];
+    let image_url: string | undefined;
+    if (options.file && options.file.type.startsWith("image/")) {
+        image_url = URL.createObjectURL(options.file);
+    }
+
+    const newMessages: Message[] = [...messages, { role: "user", content: text, image_url }];
     setMessages(newMessages);
 
     // Read persisted ministry from sidebar selection, fallback to JWT ministry
@@ -109,6 +115,7 @@ export default function DashboardPage() {
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
+      let streamBuffer = "";
       
       setIsSearchingInternet(false);
 
@@ -118,24 +125,23 @@ export default function DashboardPage() {
         const { done, value } = await reader!.read();
         if (done) break;
 
-        const chunkStr = decoder.decode(value);
-        let processedChunk = chunkStr;
+        let processedChunk = decoder.decode(value, { stream: true });
+        streamBuffer += processedChunk;
 
         // Filter RAG metadata tokens
-        if (processedChunk.includes("[RAG_META:")) {
-           processedChunk = processedChunk.replace(/\[RAG_META:.*?\]/g, "").replace(/\n/g, "");
+        if (streamBuffer.includes("[RAG_META:")) {
+           streamBuffer = streamBuffer.replace(/\[RAG_META:.*?\]/g, "");
         }
 
-        if (processedChunk.includes("[SEARCHING_INTERNET]")) {
+        if (streamBuffer.includes("<SEARCHING_INTERNET>")) {
            setIsSearchingInternet(true);
-           processedChunk = processedChunk.replace("[SEARCHING_INTERNET]", "").replace(/\n/g, "");
+           streamBuffer = streamBuffer.replace("<SEARCHING_INTERNET>", "");
         }
         
-        if (processedChunk.includes("[WEB_SOURCES:")) {
-           const match = processedChunk.match(/\[WEB_SOURCES:(.*?)\]/);
-           if (match) {
+        const webSourcesMatch = streamBuffer.match(/<WEB_SOURCES>(.*?)<\/WEB_SOURCES>/);
+        if (webSourcesMatch) {
              try {
-                const parsedSources = JSON.parse(match[1]);
+                const parsedSources = JSON.parse(webSourcesMatch[1]);
                 setMessages((prev) => {
                   const last = prev[prev.length - 1];
                   return [
@@ -144,16 +150,21 @@ export default function DashboardPage() {
                   ];
                 });
              } catch(e) {}
-             processedChunk = processedChunk.replace(/\[WEB_SOURCES:.*?\]/g, "").replace(/\n/g, "");
-           }
+             streamBuffer = streamBuffer.replace(/<WEB_SOURCES>.*?<\/WEB_SOURCES>/, "");
         }
         
+        // Wait if we have a partial tag
+        if (streamBuffer.includes("<WEB_SOURCES>") && !streamBuffer.includes("</WEB_SOURCES>")) {
+            continue;
+        }
+
         // Robust State Reset: Reset isSearchingInternet when actual content arrives
-        if (processedChunk.trim() !== "") {
+        if (streamBuffer.trim() !== "") {
            setIsSearchingInternet(false);
         }
 
-        assistantContent += processedChunk;
+        assistantContent += streamBuffer;
+        streamBuffer = ""; // Clear buffer
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           return [

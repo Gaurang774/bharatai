@@ -79,6 +79,42 @@ class PDFExtractor:
 
         return result
 
+    def extract_image(self, filepath: str) -> dict:
+        """OCR extraction for raw image files (JPG, PNG)"""
+        path = Path(filepath)
+        if not path.exists():
+            raise FileNotFoundError(f"Image not found: {filepath}")
+
+        result = {
+            "text": "",
+            "tables": [],
+            "page_count": 1,
+            "has_tables": False,
+            "is_scanned": True,
+            "language": "auto",
+            "extraction_method": "tesseract_ocr"
+        }
+
+        try:
+            from PIL import Image
+            import pytesseract
+            
+            image = Image.open(filepath)
+            text = pytesseract.image_to_string(
+                image,
+                lang="hin+eng",
+                config="--psm 6"
+            )
+            result["text"] = text
+
+            if self._is_hindi(text):
+                result["language"] = "hi"
+
+        except Exception as e:
+            logger.error(f"Image OCR extraction failed: {e}")
+
+        return result
+
     def _ocr_extract(self, filepath: str) -> str:
         """OCR extraction for scanned PDFs"""
         try:
