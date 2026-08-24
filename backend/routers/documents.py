@@ -21,29 +21,32 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can upload documents")
-
+    # Remove admin restriction so users can upload docs to their own vault
     file_path = os.path.join(UPLOAD_DIR, file.filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     try:
+        db_doc = DBDocument(
+            filename=file.filename,
+            ministry=ministry,
+            uploaded_by=current_user.email,
+            chunk_count=0
+        )
+        db.add(db_doc)
+        db.commit()
+        db.refresh(db_doc)
+
         rag = RAGService()
         ingestion_result = rag.ingest_document(
             filepath=file_path,
             ministry=ministry,
             doc_type=doc_type,
-            filename=file.filename
+            filename=file.filename,
+            document_id=db_doc.id
         )
 
-        db_doc = DBDocument(
-            filename=file.filename,
-            ministry=ministry,
-            uploaded_by=current_user.email,
-            chunk_count=ingestion_result["chunk_count"]
-        )
-        db.add(db_doc)
+        db_doc.chunk_count = ingestion_result["chunk_count"]
         db.commit()
 
         scanned_note = " (OCR used — scanned PDF detected)" if ingestion_result["is_scanned"] else ""
@@ -52,6 +55,7 @@ async def upload_document(
 
         return {
             "message": f"File uploaded and processed{scanned_note}",
+            "document_id": db_doc.id,
             "chunks": ingestion_result["chunk_count"],
             "pages": ingestion_result["page_count"],
             "total_words": ingestion_result["total_words"],
@@ -66,4 +70,5 @@ async def upload_document(
 
 @router.get("/list")
 async def list_documents(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(DBDocument).all()
+    # Ownership Validation: Only return documents uploaded by the current user
+    return db.query(DBDocument).filter(DBDocument.uploaded_by == current_user.email).order_by(DBDocument.created_at.desc()).all()

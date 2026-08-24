@@ -74,7 +74,8 @@ class RAGService:
         self,
         query: str,
         ministry: str,
-        n_results: int = 10
+        n_results: int = 10,
+        document_ids: List[int] = None
     ) -> List[str]:
         """Semantic vector search in ChromaDB"""
         try:
@@ -85,10 +86,18 @@ class RAGService:
 
             query_embedding = self.embeddings.embed_text(query)
 
+            where_clause = None
+            if document_ids:
+                if len(document_ids) == 1:
+                    where_clause = {"document_id": document_ids[0]}
+                else:
+                    where_clause = {"document_id": {"$in": document_ids}}
+
             results = collection.query(
                 query_embeddings=[query_embedding],
                 n_results=min(n_results, collection.count()),
-                include=["documents", "distances"]
+                include=["documents", "distances"],
+                where=where_clause
             )
 
             return results["documents"][0] if results["documents"] else []
@@ -101,9 +110,15 @@ class RAGService:
         self,
         query: str,
         ministry: str,
-        n_results: int = 10
+        n_results: int = 10,
+        document_ids: List[int] = None
     ) -> List[str]:
         """BM25 keyword search for exact term matching"""
+        if document_ids:
+            # Skip BM25 if strict document filtering is required 
+            # (as BM25 index doesn't have document_id metadata linked)
+            return []
+            
         if ministry not in self._bm25_indexes:
             return []
 
@@ -129,11 +144,12 @@ class RAGService:
     def _hybrid_search(
         self,
         query: str,
-        ministry: str
+        ministry: str,
+        document_ids: List[int] = None
     ) -> List[str]:
         """Combine vector + keyword search results"""
-        vector_results = self._vector_search(query, ministry, n_results=10)
-        keyword_results = self._keyword_search(query, ministry, n_results=10)
+        vector_results = self._vector_search(query, ministry, n_results=10, document_ids=document_ids)
+        keyword_results = self._keyword_search(query, ministry, n_results=10, document_ids=document_ids)
 
         # Deduplicate while preserving order (vector results prioritized)
         seen = set()
@@ -173,7 +189,8 @@ class RAGService:
         self,
         question: str,
         ministry: str,
-        role: str = "officer"
+        role: str = "officer",
+        document_ids: List[int] = None
     ) -> dict:
         """
         Main RAG query pipeline.
@@ -185,7 +202,7 @@ class RAGService:
             return {**cached, "from_cache": True}
 
         # 2. Hybrid search
-        raw_chunks = self._hybrid_search(question, ministry)
+        raw_chunks = self._hybrid_search(question, ministry, document_ids=document_ids)
 
         # 3. Rerank for true relevance
         if raw_chunks:
@@ -301,7 +318,8 @@ Rules:
         filepath: str,
         ministry: str,
         doc_type: str = "general",
-        filename: str = ""
+        filename: str = "",
+        document_id: int = None
     ) -> dict:
         """
         Full document ingestion pipeline:
@@ -332,16 +350,18 @@ Rules:
         # 4. Store in ChromaDB
         collection = self._get_collection(ministry)
         ids = [f"{filename}_{c['chunk_index']}" for c in chunks]
-        metadatas = [
-            {
+        metadatas = []
+        for c in chunks:
+            meta = {
                 "source": filename,
                 "ministry": ministry,
                 "doc_type": doc_type,
                 "chunk_index": c["chunk_index"],
                 "word_count": c["word_count"]
             }
-            for c in chunks
-        ]
+            if document_id is not None:
+                meta["document_id"] = document_id
+            metadatas.append(meta)
 
         collection.upsert(
             ids=ids,
@@ -421,12 +441,12 @@ Rules:
         )
         return result["chunk_count"], 0  # redaction_count not used in new pipeline
 
-    def retrieve_context(self, query: str, ministry: str, k: int = 3):
+    def retrieve_context(self, query: str, ministry: str, k: int = 3, document_ids: List[int] = None):
         """
         Legacy shim: maps old retrieve_context to new hybrid search + rerank.
         Returns (context_text, num_docs_found, avg_confidence_pct) tuple.
         """
-        raw_chunks = self._hybrid_search(query, ministry)
+        raw_chunks = self._hybrid_search(query, ministry, document_ids=document_ids)
         if not raw_chunks:
             return "", 0, 0.0
 

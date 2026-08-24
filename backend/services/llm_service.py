@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-DEFAULT_MODEL = os.getenv("LLM_MODEL", "llama3:latest")
+DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b")
 
 class LLMService:
     def __init__(self, model: str = DEFAULT_MODEL):
@@ -42,7 +42,10 @@ class LLMService:
                     if chunk.get("done"):
                         break
         except Exception as e:
-            print(f"Ollama Error: {e}. Falling back to mock response.")
+            error_msg = f"Ollama Error: {e}. Falling back to mock response."
+            print(error_msg)
+            with open("ollama_error.txt", "w") as f:
+                f.write(error_msg)
             yield from self._mock_streaming_response(prompt)
 
     def _mock_streaming_response(self, prompt: str) -> Generator[str, None, None]:

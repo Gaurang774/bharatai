@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, SessionLocal
@@ -12,25 +13,6 @@ from models.document import Document
 
 from routers import auth, chat, audit, documents, models, rag_debug
 from services.auth_service import get_password_hash
-
-app = FastAPI(title="BharatAI API", version="1.0.0")
-
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # In production, restrict this
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include Routers
-app.include_router(auth.router)
-app.include_router(chat.router)
-app.include_router(audit.router)
-app.include_router(documents.router)
-app.include_router(models.router)
-app.include_router(rag_debug.router)
 
 
 DEMO_AUDIT_ENTRIES = [
@@ -71,13 +53,9 @@ DEMO_AUDIT_ENTRIES = [
 ]
 
 
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """Create tables and seed demo data on first run."""
-    # Pre-initialize RAG singleton
-    from services.rag_service import RAGService
-    RAGService()
-
     # Create all tables
     Base.metadata.create_all(bind=engine)
 
@@ -127,12 +105,35 @@ def on_startup():
             print("[OK] Audit data already exists, skipping seed.")
 
     except Exception as e:
-        print(f"⚠️ Database seed error: {e}")
+        print(f"[WARNING] Database seed error: {e}")
     finally:
         db.close()
+
+    yield
+
+
+app = FastAPI(title="BharatAI API", version="1.0.0", lifespan=lifespan)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, restrict this
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include Routers
+app.include_router(auth.router)
+app.include_router(chat.router)
+app.include_router(audit.router)
+app.include_router(documents.router)
+app.include_router(models.router)
+app.include_router(rag_debug.router)
 
 
 @app.get("/")
 def read_root():
     return {"message": "BharatAI Sovereign AI Platform API is online"}
+
 
