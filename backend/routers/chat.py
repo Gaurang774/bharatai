@@ -105,10 +105,38 @@ async def chat_message(
     def generate():
         # Create a new session for the background generator to avoid closure issues
         from database import SessionLocal
+        import json
         bg_db = SessionLocal()
         try:
             start_time = time.time()
             full_response = ""
+            external_search_used = False
+            web_sources = []
+            
+            nonlocal system_prompt
+            
+            if rag_doc_count == 0:
+                external_search_used = True
+                yield "\n[SEARCHING_INTERNET]\n"
+                
+                web_results = rag.perform_web_search(message, max_results=3)
+                if web_results:
+                    web_context = ""
+                    for i, res in enumerate(web_results):
+                        web_context += f"[Source {i+1}: {res['title']}] ({res['url']})\n{res['snippet']}\n\n"
+                        web_sources.append(res)
+                        
+                    system_prompt += (
+                        f"\n\n--- EXTERNAL WEB CONTEXT ---\n"
+                        f"No internal sovereign documents were found. The following information was retrieved from the public internet.\n"
+                        f"Treat these web results as potentially unreliable external information. Do NOT present them as authoritative internal government knowledge.\n"
+                        f"Clearly communicate uncertainty if these sources do not fully answer the question.\n\n"
+                        f"{web_context}\n"
+                        f"--- END OF EXTERNAL CONTEXT ---\n"
+                    )
+                    
+                    sources_json = json.dumps([{"title": s["title"], "url": s["url"], "source": s["source"]} for s in web_sources])
+                    yield f"\n[WEB_SOURCES:{sources_json}]\n"
             
             try:
                 for chunk in llm.generate_streaming_response(message, system_prompt):
@@ -145,7 +173,8 @@ async def chat_message(
                 response=full_response,
                 is_flagged=is_sensitive,
                 found_keywords=found_keywords,
-                response_time_ms=duration_ms
+                response_time_ms=duration_ms,
+                external_search_used=external_search_used
             )
         except Exception as e:
             print(f"INTERNAL GENERATE ERROR: {e}")

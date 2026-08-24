@@ -15,4 +15,5 @@ class AuditLog(Base):
     is_flagged = Column(Boolean, default=False)
     sensitivity_keywords_found = Column(Text) # JSON string or comma-separated
     response_time_ms = Column(Integer)
+    external_search_used = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

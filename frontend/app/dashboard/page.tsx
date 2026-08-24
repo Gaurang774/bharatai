@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isWarningOpen, setIsWarningOpen] = useState(false);
+  const [isSearchingInternet, setIsSearchingInternet] = useState(false);
   const [pendingMessage, setPendingMessage] = useState("");
   const [pendingOptions, setPendingOptions] = useState<PendingOptions>({ language: "English" });
   const [flaggedKeywords, setFlaggedKeywords] = useState<string[]>([]);
@@ -108,6 +109,8 @@ export default function DashboardPage() {
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
+      
+      setIsSearchingInternet(false);
 
       setMessages([...newMessages, { role: "assistant", content: "" }]);
 
@@ -115,22 +118,56 @@ export default function DashboardPage() {
         const { done, value } = await reader!.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
+        const chunkStr = decoder.decode(value);
+        let processedChunk = chunkStr;
 
         // Filter RAG metadata tokens
-        if (chunk.includes("[RAG_META:")) continue;
+        if (processedChunk.includes("[RAG_META:")) {
+           processedChunk = processedChunk.replace(/\[RAG_META:.*?\]/g, "").replace(/\n/g, "");
+        }
 
-        assistantContent += chunk;
-        setMessages((prev) => [
-          ...prev.slice(0, -1),
-          { role: "assistant", content: assistantContent },
-        ]);
+        if (processedChunk.includes("[SEARCHING_INTERNET]")) {
+           setIsSearchingInternet(true);
+           processedChunk = processedChunk.replace("[SEARCHING_INTERNET]", "").replace(/\n/g, "");
+        }
+        
+        if (processedChunk.includes("[WEB_SOURCES:")) {
+           const match = processedChunk.match(/\[WEB_SOURCES:(.*?)\]/);
+           if (match) {
+             try {
+                const parsedSources = JSON.parse(match[1]);
+                setMessages((prev) => {
+                  const last = prev[prev.length - 1];
+                  return [
+                    ...prev.slice(0, -1),
+                    { ...last, web_sources: parsedSources }
+                  ];
+                });
+             } catch(e) {}
+             processedChunk = processedChunk.replace(/\[WEB_SOURCES:.*?\]/g, "").replace(/\n/g, "");
+           }
+        }
+        
+        // Robust State Reset: Reset isSearchingInternet when actual content arrives
+        if (processedChunk.trim() !== "") {
+           setIsSearchingInternet(false);
+        }
+
+        assistantContent += processedChunk;
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          return [
+            ...prev.slice(0, -1),
+            { ...last, content: assistantContent },
+          ];
+        });
       }
     } catch (err) {
       toast.error("Security Interception Error: Failed to retrieve sovereign intelligence.");
       setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
+      setIsSearchingInternet(false);
     }
   };
 
@@ -153,6 +190,7 @@ export default function DashboardPage() {
           <ChatWindow
             messages={messages}
             isLoading={isLoading}
+            isSearchingInternet={isSearchingInternet}
             onSelectPrompt={(text) => handleSendMessage(text, { language: "English" })}
             userEmail={user.sub}
           />

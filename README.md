@@ -83,7 +83,10 @@ npm run dev
 - **Prompt Firewall**: Scans for 15+ sensitive government keywords (e.g., Aadhaar, classified).
 - **Ministry Context**: Tailors LLM responses based on selected ministry.
 - **Sovereign RAG**: Upload PDFs to the Admin Panel for ministry-specific knowledge retrieval.
-- **Full Audit**: Admin dashboard monitors every interaction with real-time risk flagging.
+- **Document Vault**: Upload PDFs directly within the chat interface for isolated, multi-document intelligence retrieval.
+- **Dynamic Prompt Suggestions**: Automatically tailors initial chat prompts based on the authenticated user's assigned Ministry.
+- **Dynamic Web Search Fallback**: Seamlessly falls back to public internet searches via DuckDuckGo when internal RAG yields no context, strictly isolating unverified sources.
+- **Full Audit**: Admin dashboard monitors every interaction with real-time risk flagging and external search tracking.
 
 ---
 

@@ -13,7 +13,8 @@ class AuditService:
         response: str,
         is_flagged: bool,
         found_keywords: List[str],
-        response_time_ms: int
+        response_time_ms: int,
+        external_search_used: bool = False
     ):
         audit_entry = AuditLog(
             user_id=user_id,
@@ -24,7 +25,8 @@ class AuditService:
             response_preview=response[:200],
             is_flagged=is_flagged,
             sensitivity_keywords_found=",".join(found_keywords) if found_keywords else "",
-            response_time_ms=response_time_ms
+            response_time_ms=response_time_ms,
+            external_search_used=external_search_used
         )
         db.add(audit_entry)
         db.commit()

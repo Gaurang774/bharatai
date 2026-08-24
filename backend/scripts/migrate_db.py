@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from database import engine, Base
 from models.conversation import conversation_documents
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 
 def migrate():
     inspector = inspect(engine)
@@ -16,6 +16,18 @@ def migrate():
         print("Table 'conversation_documents' created.")
     else:
         print("Table 'conversation_documents' already exists.")
+
+    # Check for external_search_used column in audit_logs
+    if inspector.has_table("audit_logs"):
+        columns = [col['name'] for col in inspector.get_columns("audit_logs")]
+        if "external_search_used" not in columns:
+            print("Adding 'external_search_used' column to 'audit_logs'...")
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE audit_logs ADD COLUMN external_search_used BOOLEAN DEFAULT 0"))
+                conn.commit()
+            print("Column added.")
+        else:
+            print("Column 'external_search_used' already exists.")
 
 if __name__ == "__main__":
     migrate()

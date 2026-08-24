@@ -422,6 +422,31 @@ Rules:
         except Exception as e:
             return {"ministry": ministry, "error": str(e)}
 
+    def perform_web_search(self, query: str, max_results: int = 3) -> List[dict]:
+        """
+        Perform an external web search using DuckDuckGo.
+        Returns structured search results containing title, url, snippet, and source.
+        """
+        from ddgs import DDGS
+        results = []
+        try:
+            logger.info(f"Performing web search for: {query}")
+            with DDGS(timeout=5) as ddgs:
+                ddgs_results = list(ddgs.text(query, max_results=max_results))
+                for r in ddgs_results:
+                    href = r.get("href", "")
+                    domain = href.split("/")[2] if "://" in href else href
+                    results.append({
+                        "title": r.get("title", ""),
+                        "url": href,
+                        "snippet": r.get("body", ""),
+                        "source": domain
+                    })
+        except Exception as e:
+            logger.error(f"Web search failed: {e}")
+            # Graceful fallback: return empty list on failure
+        return results
+
     # -----------------------------------------------------------------------
     # Legacy compatibility shims — keep old callers working
     # -----------------------------------------------------------------------

@@ -15,11 +15,12 @@ interface Message {
 interface ChatWindowProps {
   messages: Message[];
   isLoading: boolean;
+  isSearchingInternet?: boolean;
   onSelectPrompt: (text: string) => void;
-  userEmail?: string;
+  userEmail: string;
 }
 
-export const ChatWindow = ({ messages, isLoading, onSelectPrompt, userEmail }: ChatWindowProps) => {
+export const ChatWindow = ({ messages, isLoading, isSearchingInternet, onSelectPrompt, userEmail }: ChatWindowProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>(FALLBACK_SUGGESTIONS);
 
@@ -39,13 +40,12 @@ export const ChatWindow = ({ messages, isLoading, onSelectPrompt, userEmail }: C
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, isSearchingInternet]);
 
   return (
     <div 
-      ref={scrollRef}
       className="flex-1 overflow-y-auto px-6 py-8 no-scrollbar"
     >
       <div className="mx-auto max-w-4xl">
@@ -92,11 +92,23 @@ export const ChatWindow = ({ messages, isLoading, onSelectPrompt, userEmail }: C
               <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-[#222]" />
             </div>
 
-            {messages.map((msg, i) => (
-              <MessageBubble key={i} message={msg as any} />
+            {messages.map((msg, idx) => (
+              <MessageBubble key={idx} message={msg as any} />
             ))}
             
-            {isLoading && <TypingIndicator />}
+            {isSearchingInternet && (
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                className="flex items-center gap-3 py-4 text-sm text-[#f59e0b] italic"
+              >
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#f59e0b] border-t-transparent" />
+                Searching external sources...
+              </motion.div>
+            )}
+            
+            {isLoading && !isSearchingInternet && <TypingIndicator />}
+            <div ref={scrollRef} />
           </div>
         )}
       </div>
