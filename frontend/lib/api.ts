@@ -44,7 +44,8 @@ export const chatApi = {
     conversation_id?: number; 
     ministry_context?: string; 
     language?: string; 
-    model?: string 
+    model?: string;
+    document_ids?: number[];
   }) => {
     // For streaming, we use fetch directly since axios and streaming is complex
     const token = getToken();
@@ -60,6 +61,7 @@ export const chatApi = {
   
   getConversations: () => api.get('/api/chat/conversations'),
   getMessages: (id: number) => api.get(`/api/chat/conversations/${id}/messages`),
+  getSuggestions: () => api.get('/api/chat/suggestions'),
 };
 
 export const authApi = {

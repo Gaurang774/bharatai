@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const [pendingMessage, setPendingMessage] = useState("");
   const [pendingOptions, setPendingOptions] = useState<PendingOptions>({ language: "English" });
   const [flaggedKeywords, setFlaggedKeywords] = useState<string[]>([]);
+  const [activeDocumentIds, setActiveDocumentIds] = useState<number[]>([]);
 
   useEffect(() => {
     const u = getUser();
@@ -63,13 +64,22 @@ export default function DashboardPage() {
 
     setIsLoading(true);
 
+    let currentDocIds = [...activeDocumentIds];
+
     // If a file is attached, upload it first (to the RAG knowledge base)
     if (options.file) {
       try {
         const formData = new FormData();
         formData.append("file", options.file);
         formData.append("ministry", user?.ministry || "General");
-        await documentApi.upload(formData);
+        const uploadRes = await documentApi.upload(formData);
+        
+        const newDocId = uploadRes.data?.document_id;
+        if (newDocId) {
+          currentDocIds.push(newDocId);
+          setActiveDocumentIds(currentDocIds);
+        }
+
         toast.success(`📎 "${options.file.name}" indexed into knowledge base.`, { duration: 4000 });
       } catch (err: any) {
         // Non-fatal: let the message still go through
@@ -90,6 +100,7 @@ export default function DashboardPage() {
       const res = await chatApi.sendMessage(text, {
         ministry_context: ministryContext,
         language: options.language,
+        document_ids: currentDocIds.length > 0 ? currentDocIds : undefined,
       });
 
       if (!res.ok) throw new Error("Terminal connection failed");

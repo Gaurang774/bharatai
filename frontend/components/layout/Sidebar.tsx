@@ -98,7 +98,7 @@ export const Sidebar = () => {
       active: pathname === "/admin",
       adminOnly: true 
     },
-    { name: "Document Vault", icon: FolderLock, href: "#", disabled: true, tag: "Coming Soon" },
+    { name: "Document Vault", icon: FolderLock, href: "/documents", active: pathname === "/documents" },
     { name: "System Settings", icon: Settings, href: "#", disabled: true },
   ];
 

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
-import { SuggestedPrompts } from "./SuggestedPrompts";
+import { SuggestedPrompts, FALLBACK_SUGGESTIONS, Suggestion } from "./SuggestedPrompts";
+import { chatApi } from "@/lib/api";
 import { motion } from "framer-motion";
 
 interface Message {
@@ -20,6 +21,21 @@ interface ChatWindowProps {
 
 export const ChatWindow = ({ messages, isLoading, onSelectPrompt, userEmail }: ChatWindowProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>(FALLBACK_SUGGESTIONS);
+
+  useEffect(() => {
+    let mounted = true;
+    chatApi.getSuggestions()
+      .then(res => {
+        if (mounted && res.data?.suggestions) {
+          setSuggestions(res.data.suggestions);
+        }
+      })
+      .catch(err => {
+        console.error("Failed to fetch suggestions, using fallback", err);
+      });
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -62,7 +78,7 @@ export const ChatWindow = ({ messages, isLoading, onSelectPrompt, userEmail }: C
             </motion.p>
 
             <div className="mt-16 w-full">
-              <SuggestedPrompts onSelect={onSelectPrompt} />
+              <SuggestedPrompts onSelect={onSelectPrompt} suggestions={suggestions} />
             </div>
           </div>
         ) : (
