@@ -71,7 +71,7 @@ async def chat_message(
 
     # 3. RAG Context Retrieval
     rag = RAGService()
-    rag_context, rag_doc_count, rag_confidence = rag.retrieve_context(message, ministry_context, document_ids)
+    rag_context, rag_doc_count, rag_confidence = rag.retrieve_context(message, ministry_context, document_ids=document_ids)
 
     # 4. Prompt Construction
     date_str = datetime.now().strftime("%Y-%m-%d")
@@ -117,7 +117,7 @@ async def chat_message(
             
             if rag_doc_count == 0:
                 external_search_used = True
-                yield "\n[SEARCHING_INTERNET]\n"
+                yield "<SEARCHING_INTERNET>"
                 
                 web_results = rag.perform_web_search(message, max_results=3)
                 if web_results:
@@ -128,15 +128,15 @@ async def chat_message(
                         
                     system_prompt += (
                         f"\n\n--- EXTERNAL WEB CONTEXT ---\n"
-                        f"No internal sovereign documents were found. The following information was retrieved from the public internet.\n"
-                        f"Treat these web results as potentially unreliable external information. Do NOT present them as authoritative internal government knowledge.\n"
-                        f"Clearly communicate uncertainty if these sources do not fully answer the question.\n\n"
+                        f"No internal documents were found. The following information was retrieved from the public internet.\n"
+                        f"Please use these web results to answer the user's question as best as you can.\n"
+                        f"Simply mention that the information is from external public sources.\n\n"
                         f"{web_context}\n"
                         f"--- END OF EXTERNAL CONTEXT ---\n"
                     )
                     
                     sources_json = json.dumps([{"title": s["title"], "url": s["url"], "source": s["source"]} for s in web_sources])
-                    yield f"\n[WEB_SOURCES:{sources_json}]\n"
+                    yield f"<WEB_SOURCES>{sources_json}</WEB_SOURCES>"
             
             try:
                 for chunk in llm.generate_streaming_response(message, system_prompt):
