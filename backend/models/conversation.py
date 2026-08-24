@@ -1,7 +1,14 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Boolean, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
+
+conversation_documents = Table(
+    "conversation_documents",
+    Base.metadata,
+    Column("conversation_id", Integer, ForeignKey("conversations.id"), primary_key=True),
+    Column("document_id", Integer, ForeignKey("documents.id"), primary_key=True)
+)
 
 class Conversation(Base):
     __tablename__ = "conversations"
@@ -14,6 +21,7 @@ class Conversation(Base):
 
     user = relationship("User")
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+    documents = relationship("Document", secondary=conversation_documents)
 
 class Message(Base):
     __tablename__ = "messages"
